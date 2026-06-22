@@ -1092,7 +1092,8 @@ async function sbSaveAnswers(cl) {
       if (!ans || !ans.value) return;
       var parts = String(key).split('_sub_');
       rows.push({checklist_id:sbId, indicator_id:parts[0],
-                 sub_indicator_id:parts[1]||null, value:ans.value, comment:ans.comment||''});
+                 sub_indicator_id:parts[1]||null, value:ans.value,
+                 comment:ans.comment||'', photo_url:ans.photo||null});
     });
     await _sb.from('checkflow_answers').delete().eq('checklist_id', sbId);
     if (rows.length) await _sb.from('checkflow_answers').insert(rows);
