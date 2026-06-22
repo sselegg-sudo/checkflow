@@ -1052,7 +1052,7 @@ async function loadFromSupabase() {
       var answers = {};
       (cl.checkflow_answers||[]).forEach(function(a){
         var key = a.sub_indicator_id ? a.indicator_id+'_sub_'+a.sub_indicator_id : String(a.indicator_id);
-        answers[key] = {value:a.value, comment:a.comment||'', photo:null};
+        answers[key] = {value:a.value, comment:a.comment||'', photo:a.photo_url||null};
       });
       return {id:cl.id, _sbid:cl.id, objectId:cl.object_id, workerId:cl.worker_id,
               typeId:cl.type_id, authorId:cl.author_id, authorRole:'top_manager',
@@ -1342,6 +1342,8 @@ function afterLogin(){
     toast('Дані завантажено ✓','success');
     renderHomeByRole();
     updateBadge();
+    // Очищення фото старших 35 днів (тихо, у фоні)
+    if(S.currentUser&&S.currentUser.role==='admin') cleanOldPhotos();
   }).catch(function(e){
     console.error('Supabase error:',e);
     toast('Помилка завантаження даних','error');
@@ -1796,32 +1798,81 @@ function renderTypes(){
     </div>`;
   }).join('');
 }
-function openAddType(){document.getElementById('type-modal-title').textContent='Новий вид';document.getElementById('at-id').value='';['at-name','at-position'].forEach(i=>document.getElementById(i).value='');S.typeEditSelGroups={};S.typeEditSelWorkers=[];renderTypeGroupsTree();renderTypeWorkerChips();openModal('modal-add-type');}
+function openAddType(){document.getElementById('type-modal-title').textContent='Новий вид';document.getElementById('at-id').value='';['at-name','at-position'].forEach(i=>document.getElementById(i).value='');S.typeEditSelGroups={};S.typeEditSelWorkers=[];S.typeEditExpandedInds={};renderTypeGroupsTree();renderTypeWorkerChips();openModal('modal-add-type');}
 function openEditType(id){
   const t=S.types.find(x=>String(x.id)===String(id));if(!t)return;
   document.getElementById('type-modal-title').textContent='Редагувати вид';document.getElementById('at-id').value=id;document.getElementById('at-name').value=t.name;document.getElementById('at-position').value=t.position||'';
-  S.typeEditSelGroups={};(t.groupIds||[]).forEach(gid=>{S.typeEditSelGroups[gid]=S.indicators.filter(i=>i.groupId===gid&&t.indicatorIds.includes(i.id)).map(i=>i.id);});
+  S.typeEditSelGroups={};S.typeEditExpandedInds={};(t.groupIds||[]).forEach(gid=>{S.typeEditSelGroups[gid]=S.indicators.filter(i=>i.groupId===gid&&t.indicatorIds.includes(i.id)).map(i=>i.id);});
   S.typeEditSelWorkers=[...(t.workerIds||[])];renderTypeGroupsTree();renderTypeWorkerChips();openModal('modal-add-type');
 }
 function renderTypeGroupsTree(){
   const el=document.getElementById('at-groups-tree');
   if(!S.groups.length){el.innerHTML='<div style="color:var(--text3);font-size:13px">Спочатку створіть групи</div>';return;}
   el.innerHTML=S.groups.map(g=>{
-    const gi=S.indicators.filter(i=>i.groupId===g.id);const sel=S.typeEditSelGroups[g.id]||null;const gs=sel!==null;
+    const gi=S.indicators.filter(i=>i.groupId===g.id);
+    const sel=S.typeEditSelGroups[g.id]||null;const gs=sel!==null;
+    const indsHtml=gi.length?gi.map(ind=>{
+      const indSel=gs&&sel.includes(ind.id);
+      const hasSubs=ind.subs&&ind.subs.length>0;
+      const subsOpen=S.typeEditExpandedInds&&S.typeEditExpandedInds[ind.id];
+      let subsHtml='';
+      if(hasSubs&&subsOpen){
+        // показуємо підіндикатори з чекбоксами
+        subsHtml=`<div style="padding:6px 0 4px 28px;display:flex;flex-direction:column;gap:4px">
+          ${ind.subs.map((sub,si)=>{
+            const subKey=`${ind.id}_sub_${si}`;
+            const subSel=gs&&(S.typeEditSelGroups[g.id+'_subs']||{})[subKey];
+            return`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2)">
+              <input type="checkbox" ${subSel?'checked':''} onchange="toggleSubInd('${g.id}','${ind.id}',${si},this.checked)" style="accent-color:var(--accent);width:14px;height:14px">
+              <span>${sub.name||sub}</span>
+              <span style="font-size:10px;color:var(--text3)">вага ${sub.weight||1}</span>
+            </label>`;
+          }).join('')}
+        </div>`;
+      }
+      return`<div style="border-bottom:1px solid var(--border);last-child:border:none">
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 4px;${!gs?'opacity:.4;pointer-events:none':''}">
+          ${hasSubs?`<span style="cursor:pointer;font-size:11px;color:var(--accent);width:16px;text-align:center;user-select:none" onclick="toggleExpandInd('${ind.id}')">${subsOpen?'▼':'▶'}</span>`:'<span style="width:16px"></span>'}
+          <input type="checkbox" ${indSel?'checked':''} onchange="toggleTI('${g.id}','${ind.id}')" style="accent-color:var(--accent);width:15px;height:15px;flex-shrink:0" ${!gs?'disabled':''}>
+          <span style="font-size:13px;flex:1">${ind.name}</span>
+          ${hasSubs?`<span style="font-size:10px;color:var(--text3)">${ind.subs.length} підінд.</span>`:''}
+        </div>
+        ${subsHtml}
+      </div>`;
+    }).join(''):'<div style="font-size:12px;color:var(--text3);padding:6px 4px">Немає індикаторів</div>';
     return`<div class="type-group-section">
-      <div class="tgs-header"><span class="tgs-name">${g.name} <span style="font-size:11px;color:var(--text3)">(${gi.length})</span></span>
+      <div class="tgs-header">
+        <span class="tgs-name">${g.name} <span style="font-size:11px;color:var(--text3)">(${gi.length})</span></span>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2)">
           <input type="checkbox" ${gs?'checked':''} onchange="toggleTG('${g.id}',this.checked)" style="accent-color:var(--accent)"> Включити
         </label>
       </div>
-      <div class="tgs-inds" style="${gs?'':'opacity:.35;pointer-events:none'}">
-        ${gi.length?gi.map(ind=>`<span class="toggle-chip ${gs&&sel.includes(ind.id)?'sel-ind':''}" onclick="toggleTI('${g.id}','${ind.id}')">${ind.name}</span>`).join(''):'<span style="font-size:12px;color:var(--text3)">Немає індикаторів</span>'}
-      </div>
+      <div style="${gs?'':'opacity:.35;pointer-events:none'}">${indsHtml}</div>
     </div>`;
   }).join('');
 }
-function toggleTG(gid,checked){if(checked){S.typeEditSelGroups[gid]=S.indicators.filter(i=>i.groupId===gid).map(i=>i.id);}else{delete S.typeEditSelGroups[gid];}renderTypeGroupsTree();}
-function toggleTI(gid,indId){if(!S.typeEditSelGroups[gid])return;const arr=S.typeEditSelGroups[gid];S.typeEditSelGroups[gid]=arr.includes(indId)?arr.filter(x=>x!==indId):[...arr,indId];renderTypeGroupsTree();}
+function toggleExpandInd(indId){
+  if(!S.typeEditExpandedInds)S.typeEditExpandedInds={};
+  S.typeEditExpandedInds[indId]=!S.typeEditExpandedInds[indId];
+  renderTypeGroupsTree();
+}
+function toggleSubInd(gid,indId,si,checked){
+  const subKey=`${indId}_sub_${si}`;
+  if(!S.typeEditSelGroups[gid+'_subs'])S.typeEditSelGroups[gid+'_subs']={};
+  S.typeEditSelGroups[gid+'_subs'][subKey]=checked;
+  renderTypeGroupsTree();
+}
+function toggleTG(gid,checked){
+  if(checked){S.typeEditSelGroups[gid]=S.indicators.filter(i=>i.groupId===gid).map(i=>i.id);}
+  else{delete S.typeEditSelGroups[gid];delete S.typeEditSelGroups[gid+'_subs'];}
+  renderTypeGroupsTree();
+}
+function toggleTI(gid,indId){
+  if(!S.typeEditSelGroups[gid])return;
+  const arr=S.typeEditSelGroups[gid];
+  S.typeEditSelGroups[gid]=arr.includes(indId)?arr.filter(x=>x!==indId):[...arr,indId];
+  renderTypeGroupsTree();
+}
 function renderTypeWorkerChips(){document.getElementById('at-workers-chips').innerHTML=S.workers.map(w=>`<span class="toggle-chip ${S.typeEditSelWorkers.includes(w.id)?'sel-worker':''}" onclick="toggleTW('${w.id}')">${w.first} ${w.last}</span>`).join('');}
 function toggleTW(id){S.typeEditSelWorkers=S.typeEditSelWorkers.includes(id)?S.typeEditSelWorkers.filter(x=>x!==id):[...S.typeEditSelWorkers,id];renderTypeWorkerChips();}
 function saveType(){
@@ -1985,7 +2036,7 @@ function renderIRow(cl,ind,readonly){
   if(!readonly&&ind.photoRequired){
     const hp=ans.photo;
     photoUpHtml=`<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <input type="file" accept="image/*" id="fp-${cl.id}-${key}" style="display:none" onchange="attachPhoto(${cl.id},'${key}',this)">
+      <input type="file" accept="image/*" id="fp-${cl.id}-${key}" style="display:none" onchange="attachPhoto('${cl.id}','${key}',this)">
       ${hp?`<img src="${ans.photo}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;border:2px solid var(--green);cursor:pointer" onclick="openLightbox(this.src)">
         <button class="ir-btn" style="color:var(--green)" onclick="document.getElementById('fp-${cl.id}-${key}').click()">✓ Фото є (замінити)</button>`:
         `<button class="ir-btn" style="border-color:rgba(220,38,38,.5);color:var(--red);font-weight:600" onclick="document.getElementById('fp-${cl.id}-${key}').click()">📷 Додати фото (обов'язково)</button>`}
@@ -2066,9 +2117,52 @@ function renderSubRow(cl,ind,si,sub,readonly){
   </div></div>`;
 }
 
-function attachPhoto(clId,key,input){
-  const file=input.files[0];if(!file)return;const cl=S.checklists.find(c=>c.id===clId);if(!cl)return;
-  const reader=new FileReader();reader.onload=e=>{const k=String(key);cl.answers[k]=cl.answers[k]||{value:null,comment:'',photo:null};cl.answers[k].photo=e.target.result;openFillView(clId,false);toast('Фото прикріплено');};reader.readAsDataURL(file);
+async function attachPhoto(clId,key,input){
+  const file=input.files[0];if(!file)return;
+  const cl=S.checklists.find(c=>String(c.id)===String(clId));if(!cl)return;
+  const k=String(key);
+  toast('Завантаження фото...','info');
+  try{
+    const ext=file.name.split('.').pop()||'jpg';
+    const path=`${clId}/${k}_${Date.now()}.${ext}`;
+    const {data,error}=await _sb.storage.from('checklist-photos').upload(path,file,{upsert:true});
+    if(error){console.error('[attachPhoto] upload error:',error);toast('Помилка завантаження фото','error');return;}
+    const {data:urlData}=_sb.storage.from('checklist-photos').getPublicUrl(path);
+    const url=urlData.publicUrl;
+    cl.answers[k]=cl.answers[k]||{value:null,comment:'',photo:null};
+    cl.answers[k].photo=url;
+    await _sb.from('checkflow_answers').upsert({
+      checklist_id:clId,
+      indicator_id:k.includes('_sub_')?k.split('_sub_')[0]:k,
+      sub_indicator_id:k.includes('_sub_')?k.split('_sub_')[1]:null,
+      value:cl.answers[k].value,
+      comment:cl.answers[k].comment||'',
+      photo_url:url
+    });
+    openFillView(clId,false);toast('Фото прикріплено ✓');
+  }catch(e){console.error('[attachPhoto]',e);toast('Помилка фото','error');}
+}
+
+// Видалення фото старших 35 днів з Supabase Storage
+async function cleanOldPhotos(){
+  try{
+    const cutoff=new Date();cutoff.setDate(cutoff.getDate()-35);
+    const {data:folders}=await _sb.storage.from('checklist-photos').list('',{limit:1000});
+    if(!folders||!folders.length)return;
+    for(const folder of folders){
+      if(!folder.name)continue;
+      const {data:files}=await _sb.storage.from('checklist-photos').list(folder.name,{limit:1000});
+      if(!files)continue;
+      const toDelete=files.filter(f=>{
+        const d=new Date(f.created_at||f.updated_at||0);
+        return d<cutoff;
+      }).map(f=>`${folder.name}/${f.name}`);
+      if(toDelete.length){
+        await _sb.storage.from('checklist-photos').remove(toDelete);
+        console.log('[cleanOldPhotos] deleted',toDelete.length,'files');
+      }
+    }
+  }catch(e){console.error('[cleanOldPhotos]',e);}
 }
 function setA(clId,key,val){
   const cl=S.checklists.find(c=>String(c.id)===String(clId));if(!cl)return;
