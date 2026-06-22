@@ -1189,6 +1189,8 @@ async function sbSaveIndicator(ind){
 }
 async function sbDeleteIndicator(id){
   try{
+    // Видаляємо відповіді на цей індикатор у всіх чеклістах
+    await _sb.from('checkflow_answers').delete().eq('indicator_id',id);
     await _sb.from('checkflow_sub_indicators').delete().eq('indicator_id',id);
     await _sb.from('checkflow_type_indicators').delete().eq('indicator_id',id);
     await _sb.from('checkflow_indicators').delete().eq('id',id);
@@ -1215,6 +1217,14 @@ async function sbSaveType(t){
 }
 async function sbDeleteType(id){
   try{
+    // Знаходимо всі чеклісти цього виду і видаляємо їх відповіді
+    var clRes = await _sb.from('checkflow_checklists').select('id').eq('type_id',id);
+    if(clRes.data && clRes.data.length){
+      for(var i=0;i<clRes.data.length;i++){
+        await _sb.from('checkflow_answers').delete().eq('checklist_id',clRes.data[i].id);
+      }
+      await _sb.from('checkflow_checklists').delete().eq('type_id',id);
+    }
     await _sb.from('checkflow_type_indicators').delete().eq('type_id',id);
     await _sb.from('checkflow_types').delete().eq('id',id);
   }catch(e){console.error('[sbDeleteType]',e);}
@@ -1826,8 +1836,9 @@ function saveType(){
   closeModal('modal-add-type');renderTypes();
 }
 function deleteType(id){
-  if(!confirm('Видалити?'))return;
+  if(!confirm('Видалити цей вид чекліста? Всі чеклісти цього виду та їх відповіді також будуть видалені.'))return;
   S.types=S.types.filter(t=>String(t.id)!==String(id));
+  S.checklists=S.checklists.filter(c=>String(c.typeId)!==String(id));
   sbDeleteType(id);
   renderTypes();toast('Видалено');
 }
