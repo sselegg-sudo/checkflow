@@ -2041,14 +2041,15 @@ function renderIRow(cl,ind,readonly){
         <button class="ir-btn" style="color:var(--green)" onclick="document.getElementById('fp-${cl.id}-${key}').click()">✓ Фото є (замінити)</button>`:
         `<button class="ir-btn" style="border-color:rgba(220,38,38,.5);color:var(--red);font-weight:600" onclick="document.getElementById('fp-${cl.id}-${key}').click()">📷 Додати фото (обов'язково)</button>`}
     </div>`;
-  } else if(!readonly&&ans.photo){
-    photoUpHtml=`<div style="margin-top:6px"><img src="${ans.photo}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);cursor:pointer" onclick="openLightbox(this.src)"></div>`;
+  } else if(ans.photo){
+    photoUpHtml=`<div style="margin-top:6px"><img src="${ans.photo}" style="width:80px;height:80px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);cursor:pointer" onclick="openLightbox(this.src)"></div>`;
   }
 
-  // FIX 3: actHtml — при підіндикаторах все одно показуємо фото і коментар
   let actHtml='';
   if(readonly){
-    actHtml=ans.comment?`<div style="font-size:12px;color:var(--text3);margin-top:6px;padding:6px 8px;background:var(--bg3);border-radius:6px">💬 ${ans.comment}</div>`:'';
+    actHtml='';
+    if(ans.comment) actHtml+=`<div style="font-size:12px;color:var(--text3);margin-top:6px;padding:6px 8px;background:var(--bg3);border-radius:6px">💬 ${ans.comment}</div>`;
+    if(ans.photo) actHtml+=`<div style="margin-top:6px"><img src="${ans.photo}" style="width:80px;height:80px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);cursor:pointer" onclick="openLightbox(this.src)"></div>`;
   } else if(hasSubs){
     actHtml=`<div style="font-size:11px;color:var(--text2);margin-top:6px;padding:6px 10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--accent)">Оцінюється через підіндикатори ↓</div>
     ${photoUpHtml}
@@ -2097,7 +2098,8 @@ function renderSubRow(cl,ind,si,sub,readonly){
   const dotC=ans.value==='yes'?'yes':ans.value==='half'?'half':ans.value==='no'?'no':'';
   const dotI=ans.value==='yes'?'✓':ans.value==='half'?'½':ans.value==='no'?'✕':'';
   const actHtml=readonly?
-    (ans.comment?`<div style="font-size:11px;color:var(--text3);margin-top:4px;padding:4px 8px;background:var(--bg4);border-radius:6px">💬 ${ans.comment}</div>`:''):
+    `${ans.comment?`<div style="font-size:11px;color:var(--text3);margin-top:4px;padding:4px 8px;background:var(--bg4);border-radius:6px">💬 ${ans.comment}</div>`:''}
+     ${ans.photo?`<div style="margin-top:4px"><img src="${ans.photo}" style="width:60px;height:60px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);cursor:pointer" onclick="openLightbox(this.src)"></div>`:''}`:
     `<div class="ir-actions">
       <button class="ir-btn ${ans.value==='yes'?'yes':''}" onclick="setA('${cl.id}','${key}','yes')">✓ Виконано</button>
       <button class="ir-btn ${ans.value==='half'?'half':''}" onclick="setA('${cl.id}','${key}','half')">½ 50/50</button>
