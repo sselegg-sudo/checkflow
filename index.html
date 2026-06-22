@@ -1089,10 +1089,10 @@ async function sbSaveAnswers(cl) {
     var rows = [];
     Object.keys(cl.answers).forEach(function(key){
       var ans = cl.answers[key];
-      if (!ans || !ans.value) return;
+      if (!ans || (!ans.value && !ans.photo && !ans.comment)) return;
       var parts = String(key).split('_sub_');
       rows.push({checklist_id:sbId, indicator_id:parts[0],
-                 sub_indicator_id:parts[1]||null, value:ans.value,
+                 sub_indicator_id:parts[1]||null, value:ans.value||null,
                  comment:ans.comment||'', photo_url:ans.photo||null});
     });
     await _sb.from('checkflow_answers').delete().eq('checklist_id', sbId);
