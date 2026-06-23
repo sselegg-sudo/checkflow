@@ -1058,7 +1058,13 @@ async function loadFromSupabase() {
       S.indicators.forEach(function(ind){
         if(iids.indexOf(ind.id)>=0 && gids.indexOf(ind.groupId)<0) gids.push(ind.groupId);
       });
-      return {id:t.id, name:t.name, position:t.position||'', groupIds:gids, indicatorIds:iids, subMap:subMap, workerIds:[]};
+      return {id:t.id, name:t.name, position:t.position||'', groupIds:gids, indicatorIds:iids, subMap:subMap, workerIds:(function(){
+        try{
+          if(!t.worker_ids)return[];
+          var w=typeof t.worker_ids==='string'?JSON.parse(t.worker_ids):t.worker_ids;
+          return Array.isArray(w)?w:[];
+        }catch(e){return[];}
+      })()};
     });
     S.checklists = cD.map(function(cl){
       var answers = {};
@@ -1213,7 +1219,7 @@ async function sbDeleteIndicator(id){
 // ── TYPES ──
 async function sbSaveType(t){
   try{
-    var p={name:t.name, position:t.position||''};
+    var p={name:t.name, position:t.position||'', worker_ids:JSON.stringify(t.workerIds||[])};
     if(typeof t.id==='string'&&t.id.length>20){
       await _sb.from('checkflow_types').update(p).eq('id',t.id);
     } else {
@@ -2001,7 +2007,11 @@ function openNewChecklistModal(){
     document.getElementById('nc-worker').disabled=false;
     document.getElementById('nc-worker').innerHTML='<option value="">Оберіть працівника</option>'+S.workers.map(w=>`<option value="${w.id}">${w.first} ${w.last} — ${roleLabel(w.role)}</option>`).join('');
   }
-  document.getElementById('nc-type').innerHTML='<option value="">Оберіть вид</option>'+S.types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const isMgr=cu.role==='manager';
+  const visibleTypes=(isMgr&&cu.id)
+    ? S.types.filter(t=>!t.workerIds||t.workerIds.length===0||t.workerIds.map(String).includes(String(cu.id)))
+    : S.types;
+  document.getElementById('nc-type').innerHTML='<option value="">Оберіть вид</option>'+visibleTypes.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
   document.getElementById('nc-date').value=today();
   openModal('modal-new-checklist');
 }
