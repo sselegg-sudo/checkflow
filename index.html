@@ -2128,7 +2128,11 @@ function renderIRow(cl,ind,readonly){
     ${photoUpHtml}`;
   }
 
-  const subsH=hasSubs?ind.subs.map((sub,si)=>renderSubRow(cl,ind,si,sub,readonly)).join(''):'';
+  const subsH=hasSubs?ind.subs.map((sub,si)=>{
+    const subKey=`${ind.id}_sub_${si}`;
+    if(!cl.answers[subKey])return''; // підіндикатор не обраний для цього виду
+    return renderSubRow(cl,ind,si,sub,readonly);
+  }).join(''):'';
 
   return`<div class="ir-wrap">
     <div class="indicator-row ${dc}" id="ir-${cl.id}-${key}">
@@ -2228,11 +2232,14 @@ async function cleanOldPhotos(){
 }
 function setA(clId,key,val){
   const cl=S.checklists.find(c=>String(c.id)===String(clId));if(!cl)return;
-  const k=String(key);cl.answers[k]=cl.answers[k]||{value:null,comment:'',photo:null};cl.answers[k].value=val;
+  const k=String(key);cl.answers[k]=cl.answers[k]||{value:null,comment:'',photo:null};
+  // Toggle: якщо та сама відповідь — знімаємо
+  const newVal=cl.answers[k].value===val?null:val;
+  cl.answers[k].value=newVal;
   const row=document.getElementById(`ir-${clId}-${k}`);const dot=document.getElementById(`isd-${clId}-${k}`);
-  if(row)row.className=`indicator-row ${val==='yes'?'done-yes':val==='half'?'done-half':'done-no'}`;
-  if(dot){dot.className=`ir-status-dot ${val}`;dot.textContent=val==='yes'?'✓':val==='half'?'½':'✕';}
-  if(row){const btns=row.querySelectorAll('.ir-btn');const labs=['yes','half','no'];btns.forEach((b,i)=>{if(i<3)b.className=`ir-btn ${labs[i]===val?labs[i]:''}`;});}
+  if(row)row.className=`indicator-row ${newVal==='yes'?'done-yes':newVal==='half'?'done-half':newVal==='no'?'done-no':''}`;
+  if(dot){dot.className=`ir-status-dot ${newVal||''}`;dot.textContent=newVal==='yes'?'✓':newVal==='half'?'½':newVal==='no'?'✕':'';}
+  if(row){const btns=row.querySelectorAll('.ir-btn');const labs=['yes','half','no'];btns.forEach((b,i)=>{if(i<3)b.className=`ir-btn ${labs[i]===newVal?labs[i]:''}`;});}
   updateFillProgress(cl);
   if(cl._sbid){sbSaveAnswers(cl);}
 }
