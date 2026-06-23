@@ -1362,8 +1362,16 @@ function afterLogin(){
   toast('Завантаження даних...','info');
   loadFromSupabase().then(function(){
     toast('Дані завантажено ✓','success');
-    renderHomeByRole();
     updateBadge();
+    // Відновлення поточної сторінки після оновлення
+    try{
+      var sess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');
+      if(sess.page&&sess.page!=='home'){
+        goPage(sess.page);
+      } else {
+        renderHomeByRole();
+      }
+    }catch(e){renderHomeByRole();}
     // Очищення фото старших 35 днів (тихо, у фоні)
     if(S.currentUser&&S.currentUser.role==='admin') cleanOldPhotos();
   }).catch(function(e){
@@ -1429,13 +1437,18 @@ function updateBadge(){const n=S.checklists.filter(c=>c.status==='open').length;
 
 // ── NAV ──
 function goPage(id){
-  // Access control: only admin/owner can access settings
   const cu=S.currentUser;
   if(!cu)return;
   if(['indicators','types'].includes(id)&&cu.role==='manager'){toast('Доступ заборонено для вашої ролі','error');return;}
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const el=document.getElementById('page-'+id);if(!el)return;
   el.classList.add('active');
+  // Зберігаємо поточну сторінку для відновлення при оновленні
+  try{
+    var sess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');
+    sess.page=id;
+    sessionStorage.setItem('cf_session',JSON.stringify(sess));
+  }catch(e){}
   ({
     'open-checklists':renderOpenChecklists,'archive':renderArchive,
     'analytics':()=>{populateAnalyticsFilters();renderAnalytics();},
