@@ -1358,7 +1358,11 @@ function afterLogin(){
     if(mb)mb.style.display='none';
   }
   // Show loading and render home immediately with whatever data we have
-  renderHomeByRole();
+  try{
+    var _sess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');
+    if(!_sess.page||_sess.page==='home') renderHomeByRole();
+    else goPage(_sess.page);
+  }catch(e){renderHomeByRole();}
   toast('Завантаження даних...','info');
   loadFromSupabase().then(function(){
     toast('Дані завантажено ✓','success');
