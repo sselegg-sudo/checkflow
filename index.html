@@ -1040,13 +1040,25 @@ async function loadFromSupabase() {
               required:!!ind.required, photoRequired:!!ind.photo_required, subs:subs};
     });
     S.types = tD.map(function(t){
-      var iids = tiD.filter(function(ti){return ti.type_id===t.id;}).map(function(ti){return ti.indicator_id;});
+      var tiRows = tiD.filter(function(ti){return ti.type_id===t.id;});
+      var iids = tiRows.map(function(ti){return ti.indicator_id;});
+      // sub_indicator_ids per indicator: {indicator_id: [sub_indices]}
+      var subMap = {};
+      tiRows.forEach(function(ti){
+        var sids = [];
+        try{
+          if(ti.sub_indicator_ids){
+            var parsed = typeof ti.sub_indicator_ids==='string' ? JSON.parse(ti.sub_indicator_ids) : ti.sub_indicator_ids;
+            sids = Array.isArray(parsed) ? parsed : [];
+          }
+        }catch(e){sids=[];}
+        if(sids.length) subMap[ti.indicator_id] = sids;
+      });
       var gids = [];
       S.indicators.forEach(function(ind){
         if(iids.indexOf(ind.id)>=0 && gids.indexOf(ind.groupId)<0) gids.push(ind.groupId);
       });
-      // All workers can do all checklist types by default - workerIds populated from positions
-      return {id:t.id, name:t.name, position:t.position||'', groupIds:gids, indicatorIds:iids, workerIds:[]};
+      return {id:t.id, name:t.name, position:t.position||'', groupIds:gids, indicatorIds:iids, subMap:subMap, workerIds:[]};
     });
     S.checklists = cD.map(function(cl){
       var answers = {};
@@ -1211,7 +1223,10 @@ async function sbSaveType(t){
     // sync type_indicators
     await _sb.from('checkflow_type_indicators').delete().eq('type_id',t.id);
     if(t.indicatorIds&&t.indicatorIds.length){
-      var rows=t.indicatorIds.map(function(iid){return{type_id:t.id,indicator_id:iid};});
+      var rows=t.indicatorIds.map(function(iid){
+        var sids=(t.subMap&&t.subMap[iid])||[];
+        return{type_id:t.id, indicator_id:iid, sub_indicator_ids:JSON.stringify(sids)};
+      });
       await _sb.from('checkflow_type_indicators').insert(rows);
     }
   }catch(e){console.error('[sbSaveType]',e);}
@@ -1803,7 +1818,23 @@ function openAddType(){document.getElementById('type-modal-title').textContent='
 function openEditType(id){
   const t=S.types.find(x=>String(x.id)===String(id));if(!t)return;
   document.getElementById('type-modal-title').textContent='Редагувати вид';document.getElementById('at-id').value=id;document.getElementById('at-name').value=t.name;document.getElementById('at-position').value=t.position||'';
-  S.typeEditSelGroups={};S.typeEditExpandedInds={};(t.groupIds||[]).forEach(gid=>{S.typeEditSelGroups[gid]=S.indicators.filter(i=>i.groupId===gid&&t.indicatorIds.includes(i.id)).map(i=>i.id);});
+  S.typeEditSelGroups={};S.typeEditExpandedInds={};
+  (t.groupIds||[]).forEach(gid=>{
+    S.typeEditSelGroups[gid]=S.indicators.filter(i=>i.groupId===gid&&t.indicatorIds.includes(i.id)).map(i=>i.id);
+    // Відновлюємо вибрані підіндикатори з subMap
+    const subsKey=gid+'_subs';
+    S.typeEditSelGroups[subsKey]={};
+    S.indicators.filter(i=>i.groupId===gid&&t.indicatorIds.includes(i.id)).forEach(ind=>{
+      const allowedSubs=(t.subMap&&t.subMap[ind.id])||null;
+      if(allowedSubs&&ind.subs&&ind.subs.length){
+        ind.subs.forEach((_,si)=>{
+          if(allowedSubs.includes(si)){
+            S.typeEditSelGroups[subsKey][`${ind.id}_sub_${si}`]=true;
+          }
+        });
+      }
+    });
+  });
   S.typeEditSelWorkers=[...(t.workerIds||[])];renderTypeGroupsTree();renderTypeWorkerChips();openModal('modal-add-type');
 }
 function renderTypeGroupsTree(){
@@ -1879,11 +1910,27 @@ function toggleTW(id){S.typeEditSelWorkers=S.typeEditSelWorkers.includes(id)?S.t
 function saveType(){
   const editId=document.getElementById('at-id').value;const name=document.getElementById('at-name').value.trim();const position=document.getElementById('at-position').value.trim();
   if(!name){toast('Вкажіть назву','error');return;}
-  const groupIds=Object.keys(S.typeEditSelGroups);const indicatorIds=[...new Set(Object.values(S.typeEditSelGroups).flat())];
+  const groupIds=Object.keys(S.typeEditSelGroups).filter(k=>!k.includes('_subs'));
+  const indicatorIds=[...new Set(groupIds.reduce((acc,gid)=>[...acc,...(S.typeEditSelGroups[gid]||[])],[]))];
   if(!indicatorIds.length){toast('Оберіть хоча б один індикатор','error');return;}
+  // Будуємо subMap: {indicator_id: [sub_indices]} з вибраних підіндикаторів
+  const subMap={};
+  groupIds.forEach(function(gid){
+    const subsKey=gid+'_subs';
+    if(!S.typeEditSelGroups[subsKey])return;
+    Object.entries(S.typeEditSelGroups[subsKey]).forEach(function([subKey,checked]){
+      if(!checked)return;
+      // subKey формат: {ind_id}_sub_{si}
+      const m=subKey.match(/^(.+)_sub_(\d+)$/);
+      if(!m)return;
+      const indId=m[1],si=parseInt(m[2]);
+      if(!subMap[indId])subMap[indId]=[];
+      if(!subMap[indId].includes(si))subMap[indId].push(si);
+    });
+  });
   let t;
-  if(editId){t=S.types.find(x=>x.id==editId);if(!t)return;Object.assign(t,{name,position,groupIds,indicatorIds,workerIds:[...S.typeEditSelWorkers]});toast('Оновлено');}
-  else{t={id:uid(),name,position,groupIds,indicatorIds,workerIds:[...S.typeEditSelWorkers]};S.types.push(t);toast('Створено');}
+  if(editId){t=S.types.find(x=>x.id==editId);if(!t)return;Object.assign(t,{name,position,groupIds,indicatorIds,subMap,workerIds:[...S.typeEditSelWorkers]});toast('Оновлено');}
+  else{t={id:uid(),name,position,groupIds,indicatorIds,subMap,workerIds:[...S.typeEditSelWorkers]};S.types.push(t);toast('Створено');}
   sbSaveType(t);
   closeModal('modal-add-type');renderTypes();
 }
@@ -1970,7 +2017,19 @@ function createChecklist(){
   // Якщо адмін/топ-менеджер робить на менеджера — НЕ самоконтроль, враховується у рейтинг
   const isManagerCL = targetWorker && targetWorker.role==='manager' && String(cu.id)===String(workerId);
   const type=S.types.find(t=>String(t.id)===String(typeId));const answers={};
-  type.indicatorIds.forEach(iid=>{const ind=getInd(iid);answers[String(iid)]={value:null,comment:'',photo:null};if(ind&&ind.subs&&ind.subs.length)ind.subs.forEach((_,si)=>{answers[`${iid}_sub_${si}`]={value:null,comment:'',photo:null};});});
+  const subMap=type.subMap||{};
+  type.indicatorIds.forEach(iid=>{
+    const ind=getInd(iid);
+    answers[String(iid)]={value:null,comment:'',photo:null};
+    if(ind&&ind.subs&&ind.subs.length){
+      const allowedSubs=subMap[iid]; // масив індексів або undefined (всі)
+      ind.subs.forEach((_,si)=>{
+        if(!allowedSubs||allowedSubs.includes(si)){
+          answers[`${iid}_sub_${si}`]={value:null,comment:'',photo:null};
+        }
+      });
+    }
+  });
   const cl={id:uid(),objectId,date,workerId,typeId,status:'open',
     isManagerCL, authorId:cu.id, authorRole:cu.role,
     createdAt:new Date().toISOString(),closedAt:null,score:null,answers};
