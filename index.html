@@ -1305,7 +1305,8 @@ async function doLogin(){
   const cred=CREDENTIALS.find(c=>c.login===login&&c.pass===pass);
   if(cred){
     S.currentUser={id:null,role:cred.role,name:cred.name,login:cred.login,isOwner:true};
-    sessionStorage.setItem('cf_session', JSON.stringify({login:cred.login,pass:document.getElementById('pass-input').value.trim()}));
+    var _prevSess={}; try{_prevSess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');}catch(e){}
+    sessionStorage.setItem('cf_session', JSON.stringify({login:cred.login,pass:document.getElementById('pass-input').value.trim(),page:_prevSess.page||'home'}));
     afterLogin();return;
   }
 
@@ -1327,7 +1328,8 @@ async function doLogin(){
   const w=S.workers.find(x=>x.login===login&&x.pass===pass);
   if(w){
     S.currentUser={id:w.id,role:w.role,name:`${w.first} ${w.last}`,login:w.login,isOwner:false};
-    sessionStorage.setItem('cf_session', JSON.stringify({login:w.login,pass:document.getElementById('pass-input').value.trim()}));
+    var _prevSess2={}; try{_prevSess2=JSON.parse(sessionStorage.getItem('cf_session')||'{}');}catch(e){}
+    sessionStorage.setItem('cf_session', JSON.stringify({login:w.login,pass:document.getElementById('pass-input').value.trim(),page:_prevSess2.page||'home'}));
     afterLogin();return;
   }
   err.style.display='block';
