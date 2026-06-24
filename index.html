@@ -1989,8 +1989,17 @@ function countAnswerable(cl){
   let total=0,done=0;
   type.indicatorIds.forEach(iid=>{
     const ind=getInd(iid);if(!ind)return;
-    if(ind.subs&&ind.subs.length){ind.subs.forEach((_,si)=>{total++;if(cl.answers[`${iid}_sub_${si}`]&&cl.answers[`${iid}_sub_${si}`].value)done++;});}
-    else{total++;if(cl.answers[String(iid)]&&cl.answers[String(iid)].value)done++;}
+    if(ind.subs&&ind.subs.length){
+      ind.subs.forEach((_,si)=>{
+        const key=`${iid}_sub_${si}`;
+        if(!cl.answers[key])return; // підіндикатор не входить у цей вид
+        total++;
+        if(cl.answers[key].value)done++;
+      });
+    } else {
+      total++;
+      if(cl.answers[String(iid)]&&cl.answers[String(iid)].value)done++;
+    }
   });
   return{total,done};
 }
@@ -2001,7 +2010,11 @@ function checkBlocking(cl){
     const ind=getInd(iid);if(!ind)return;
     const ans=cl.answers[String(iid)];
     if(ind.required){
-      if(ind.subs&&ind.subs.length){const ok=ind.subs.every((_,si)=>cl.answers[`${iid}_sub_${si}`]&&cl.answers[`${iid}_sub_${si}`].value);if(!ok)blocked.push(`"${ind.name}" — обов'язковий, оцініть всі підіндикатори`);}
+      if(ind.subs&&ind.subs.length){
+        const activeKeys=ind.subs.map((_,si)=>`${iid}_sub_${si}`).filter(k=>cl.answers[k]!==undefined);
+        const ok=activeKeys.length===0||activeKeys.every(k=>cl.answers[k]&&cl.answers[k].value);
+        if(!ok)blocked.push(`"${ind.name}" — обов'язковий, оцініть всі підіндикатори`);
+      }
       else if(!ans||!ans.value)blocked.push(`"${ind.name}" — обов'язковий, поставте оцінку`);
     }
     if(ind.photoRequired&&(!ans||!ans.photo))blocked.push(`"${ind.name}" — потрібне фото-підтвердження`);
