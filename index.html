@@ -2027,7 +2027,7 @@ function openNewChecklistModal(){
     document.getElementById('nc-worker').innerHTML='<option value="">Оберіть працівника</option>'+S.workers.map(w=>`<option value="${w.id}">${w.first} ${w.last} — ${roleLabel(w.role)}</option>`).join('');
   }
   const isMgr=cu.role==='manager';
-  const visibleTypes=(isMgr&&cu.id)
+  const visibleTypes=(cu.id&&(isMgr||cu.role==='top_manager'))
     ? S.types.filter(t=>!t.workerIds||t.workerIds.length===0||t.workerIds.map(String).includes(String(cu.id)))
     : S.types;
   document.getElementById('nc-type').innerHTML='<option value="">Оберіть вид</option>'+visibleTypes.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
