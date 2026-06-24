@@ -2376,11 +2376,9 @@ function renderArchive(){
     const topMgrIds=S.workers.filter(w=>w.role==='top_manager').map(w=>String(w.id));
     const mgrIds=S.workers.filter(w=>w.role==='manager').map(w=>String(w.id));
     if(_archiveFilter==='top_manager'){
-      // Чеклісти де автор є топ-менеджером
-      closed=closed.filter(c=>topMgrIds.includes(String(c.authorId))||topMgrIds.includes(String(c.workerId)));
+      closed=closed.filter(c=>topMgrIds.includes(String(c.authorId)));
     } else if(_archiveFilter==='manager'){
-      // Чеклісти де автор є менеджером (не топ-менеджером)
-      closed=closed.filter(c=>mgrIds.includes(String(c.workerId))&&!topMgrIds.includes(String(c.authorId)));
+      closed=closed.filter(c=>mgrIds.includes(String(c.authorId)));
     }
   }
   closed=[...closed].reverse();
