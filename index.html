@@ -1106,7 +1106,7 @@ async function loadFromSupabase() {
         answers[key] = {value:a.value, comment:a.comment||'', photo:a.photo_url||null};
       });
       return {id:cl.id, _sbid:cl.id, objectId:cl.object_id, workerId:cl.worker_id,
-              typeId:cl.type_id, authorId:cl.author_id, authorRole:'top_manager',
+              typeId:cl.type_id, authorId:cl.author_id||cl.worker_id, authorRole:cl.author_role||'manager',
               date:cl.date, status:cl.status, isManagerCL:!!cl.is_manager_cl,
               score:cl.score, createdAt:cl.created_at, closedAt:cl.closed_at, answers:answers};
     });
@@ -2373,9 +2373,15 @@ function renderArchive(){
   let closed=S.checklists.filter(c=>c.status==='closed');
   // Фільтрація для адміна
   if(cu&&cu.role==='admin'&&_archiveFilter!=='all'){
-    const workerRole=_archiveFilter;
-    const workerIds=S.workers.filter(w=>w.role===workerRole).map(w=>String(w.id));
-    closed=closed.filter(c=>workerIds.includes(String(c.workerId)));
+    const topMgrIds=S.workers.filter(w=>w.role==='top_manager').map(w=>String(w.id));
+    const mgrIds=S.workers.filter(w=>w.role==='manager').map(w=>String(w.id));
+    if(_archiveFilter==='top_manager'){
+      // Чеклісти де автор є топ-менеджером
+      closed=closed.filter(c=>topMgrIds.includes(String(c.authorId))||topMgrIds.includes(String(c.workerId)));
+    } else if(_archiveFilter==='manager'){
+      // Чеклісти де автор є менеджером (не топ-менеджером)
+      closed=closed.filter(c=>mgrIds.includes(String(c.workerId))&&!topMgrIds.includes(String(c.authorId)));
+    }
   }
   closed=[...closed].reverse();
   if(!closed.length){el.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><p>Архів порожній</p></div>';return;}
