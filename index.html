@@ -781,7 +781,7 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Новий чекліст</div><button class="modal-close" onclick="closeModal('modal-new-checklist')">✕</button></div>
     <div class="form-group"><label class="form-label">Об'єкт</label><select class="form-select" id="nc-object"></select></div>
-    <div class="form-group"><label class="form-label">Дата моніторингу</label><input type="date" class="form-input" id="nc-date"></div>
+    <div class="form-group" id="nc-date-group"><label class="form-label">Дата моніторингу</label><input type="date" class="form-input" id="nc-date"><div id="nc-date-display" style="display:none;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text2)"></div></div>
     <div class="form-group"><label class="form-label">Працівник</label><select class="form-select" id="nc-worker"></select></div>
     <div class="form-group"><label class="form-label">Вид чекліста</label><select class="form-select" id="nc-type"></select></div>
     <div class="modal-footer">
@@ -2031,7 +2031,20 @@ function openNewChecklistModal(){
     ? S.types.filter(t=>!t.workerIds||t.workerIds.length===0||t.workerIds.map(String).includes(String(cu.id)))
     : S.types;
   document.getElementById('nc-type').innerHTML='<option value="">Оберіть вид</option>'+visibleTypes.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-  document.getElementById('nc-date').value=today();
+  const todayStr=today();
+  document.getElementById('nc-date').value=todayStr;
+  const dateInput=document.getElementById('nc-date');
+  const dateDisplay=document.getElementById('nc-date-display');
+  if(isMgr){
+    dateInput.style.display='none';
+    dateDisplay.style.display='block';
+    // Показуємо дату в читабельному форматі
+    const d=new Date(todayStr+'T00:00:00');
+    dateDisplay.textContent=d.toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'});
+  } else {
+    dateInput.style.display='';
+    dateDisplay.style.display='none';
+  }
   openModal('modal-new-checklist');
 }
 function createChecklist(){
