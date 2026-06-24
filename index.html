@@ -2150,8 +2150,10 @@ function renderIRow(cl,ind,readonly){
   let photoUpHtml='';
   if(!readonly&&ind.photoRequired){
     const hp=ans.photo;
+    const isManagerRole=S.currentUser&&S.currentUser.role==='manager';
+    const captureAttr=isManagerRole?'capture="environment"':'';
     photoUpHtml=`<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <input type="file" accept="image/*" id="fp-${cl.id}-${key}" style="display:none" onchange="attachPhoto('${cl.id}','${key}',this)">
+      <input type="file" accept="image/*" ${captureAttr} id="fp-${cl.id}-${key}" style="display:none" onchange="attachPhoto('${cl.id}','${key}',this)">
       ${hp?`<img src="${ans.photo}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;border:2px solid var(--green);cursor:pointer" onclick="openLightbox(this.src)">
         <button class="ir-btn" style="color:var(--green)" onclick="document.getElementById('fp-${cl.id}-${key}').click()">✓ Фото є (замінити)</button>`:
         `<button class="ir-btn" style="border-color:rgba(220,38,38,.5);color:var(--red);font-weight:600" onclick="document.getElementById('fp-${cl.id}-${key}').click()">📷 Додати фото (обов'язково)</button>`}
