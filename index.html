@@ -497,6 +497,13 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
     <div class="page-header-left"><h2>Архів чеклістів</h2><p>Тільки перегляд</p></div>
     <div class="page-header-right"><button class="btn" onclick="goPage('home')">← Назад</button></div>
   </div>
+  <div id="archive-filter" style="display:none;margin-bottom:16px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="af-btn-all" onclick="setArchiveFilter('all')" style="font-size:13px">Всі чеклісти</button>
+      <button class="btn" id="af-btn-top" onclick="setArchiveFilter('top_manager')" style="font-size:13px">Топ-менеджери</button>
+      <button class="btn" id="af-btn-mgr" onclick="setArchiveFilter('manager')" style="font-size:13px">Менеджери</button>
+    </div>
+  </div>
   <div id="archive-list"></div>
 </div>
 
@@ -594,7 +601,7 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
 <!-- REPORTING -->
 <div class="page" id="page-reporting">
   <div class="page-header">
-    <div class="page-header-left"><h2>Звітність менеджерів</h2><p>Команда · Менеджер · Об'єкти · Індикатор · Сигнали · Самоконтроль</p></div>
+    <div class="page-header-left"><h2>Звітність менеджерів</h2><p>Команда · Менеджер · Об'єкти · Індикатор · Сигнали · Самоконтроль · Всі чеклісти</p></div>
     <div class="page-header-right"><button class="btn" onclick="goPage('home')">← Назад</button></div>
   </div>
   <div class="rep-tabs">
@@ -605,6 +612,7 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
     <button class="rep-tab" onclick="switchRepTab('indicator',this)">◈ Індикатор</button>
     <button class="rep-tab" onclick="switchRepTab('alerts',this)">🔔 Сигнали</button>
     <button class="rep-tab" onclick="switchRepTab('selfctrl',this)">🔄 Самоконтроль</button>
+    <button class="rep-tab" onclick="switchRepTab('allchecks',this)">📋 Всі чеклісти</button>
   </div>
 
   <div class="rep-panel active" id="rep-panel-team">
@@ -756,6 +764,24 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
     <div class="card" id="sc-detail-card" style="display:none">
       <div class="card-title" id="sc-detail-title">Деталі</div>
       <div id="sc-detail-list"></div>
+    </div>
+  </div>
+
+  <div class="rep-panel" id="rep-panel-allchecks">
+    <div class="card">
+      <div class="card-title">📋 Всі чеклісти</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:13px;color:var(--text3)">Від:</span>
+        <input type="date" class="form-input" id="allchecks-from" style="width:140px;padding:6px 10px;font-size:13px">
+        <span style="font-size:13px;color:var(--text3)">До:</span>
+        <input type="date" class="form-input" id="allchecks-to" style="width:140px;padding:6px 10px;font-size:13px">
+        <button class="btn btn-primary" style="font-size:13px" onclick="renderAllChecks()">Показати</button>
+        <button class="btn" style="font-size:13px" onclick="setAllChecksPeriod('week')">Тиждень</button>
+        <button class="btn" style="font-size:13px" onclick="setAllChecksPeriod('month')">Місяць</button>
+        <button class="btn" style="font-size:13px" onclick="setAllChecksPeriod('all')">Весь час</button>
+      </div>
+      <div id="allchecks-summary" style="margin-bottom:12px"></div>
+      <div id="allchecks-list"></div>
     </div>
   </div>
 </div>
@@ -997,7 +1023,14 @@ async function loadFromSupabase() {
       _sb.from('checkflow_types').select('*').order('name'),
       _sb.from('checkflow_type_indicators').select('*'),
       _sb.from('checkflow_sub_indicators').select('*').order('sort_order'),
-      _sb.from('checkflow_checklists').select('*, checkflow_answers(*)').order('created_at',{ascending:false}).limit(500)
+      (function(){
+        var q=_sb.from('checkflow_checklists').select('*, checkflow_answers(*)').order('created_at',{ascending:false}).limit(500);
+        var cu=S.currentUser;
+        if(cu&&cu.role==='manager') q=q.eq('worker_id',cu.id);
+        else if(cu&&cu.role==='top_manager') q=q.eq('worker_id',cu.id);
+        // admin — завантажує всі
+        return q;
+      })()
     ]);
     var wD=results[0].data||[];
     var oD=results[1].data||[];
@@ -2322,7 +2355,32 @@ function finishChecklist(){
 
 // ── CHECKLIST CARDS ──
 function renderOpenChecklists(){const el=document.getElementById('open-checklists-list');const open=S.checklists.filter(c=>c.status==='open');if(!open.length){el.innerHTML='<div class="empty-state"><div class="es-icon">📂</div><p>Немає незакритих чеклістів</p></div>';return;}el.innerHTML=open.map(cl=>clCard(cl,true)).join('');}
-function renderArchive(){const el=document.getElementById('archive-list');const closed=[...S.checklists.filter(c=>c.status==='closed')].reverse();if(!closed.length){el.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><p>Архів порожній</p></div>';return;}el.innerHTML=closed.map(cl=>clCard(cl,false)).join('');}
+var _archiveFilter='all';
+function setArchiveFilter(f){
+  _archiveFilter=f;
+  ['all','top_manager','manager'].forEach(function(k){
+    var btn=document.getElementById('af-btn-'+k);
+    if(btn)btn.className=k===f?'btn btn-primary':'btn';
+  });
+  renderArchive();
+}
+function renderArchive(){
+  const cu=S.currentUser;
+  const el=document.getElementById('archive-list');
+  const filterEl=document.getElementById('archive-filter');
+  // Показуємо фільтр тільки адміну
+  if(filterEl) filterEl.style.display=(cu&&cu.role==='admin')?'block':'none';
+  let closed=S.checklists.filter(c=>c.status==='closed');
+  // Фільтрація для адміна
+  if(cu&&cu.role==='admin'&&_archiveFilter!=='all'){
+    const workerRole=_archiveFilter;
+    const workerIds=S.workers.filter(w=>w.role===workerRole).map(w=>String(w.id));
+    closed=closed.filter(c=>workerIds.includes(String(c.workerId)));
+  }
+  closed=[...closed].reverse();
+  if(!closed.length){el.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><p>Архів порожній</p></div>';return;}
+  el.innerHTML=closed.map(cl=>clCard(cl,false)).join('');
+}
 function deleteChecklist(id){
   if(!confirm('Видалити цей незавершений чекліст? Всі введені дані буде втрачено.'))return;
   var cl=S.checklists.find(function(c){return String(c.id)===String(id);});
@@ -2433,7 +2491,56 @@ function switchRepTab(tab,btn){
   document.getElementById('rep-panel-'+tab).classList.add('active');
   if(tab==='compare')renderCompare();
 }
-function renderReporting(){populateRepFilters();renderRepTeam();renderRepManager();renderRepObjects();renderRepIndicator();renderRepAlerts();renderRepSelfControl();}
+function renderReporting(){
+  populateRepFilters();renderRepTeam();renderRepManager();renderRepObjects();renderRepIndicator();renderRepAlerts();renderRepSelfControl();
+  setAllChecksPeriod('month');
+}
+function setAllChecksPeriod(p){
+  const now=new Date();const toStr=d=>d.toISOString().split('T')[0];
+  const from=new Date(now);
+  if(p==='week') from.setDate(from.getDate()-7);
+  else if(p==='month') from.setMonth(from.getMonth()-1);
+  else from.setFullYear(2000);
+  const fEl=document.getElementById('allchecks-from');
+  const tEl=document.getElementById('allchecks-to');
+  if(fEl) fEl.value=toStr(from);
+  if(tEl) tEl.value=toStr(now);
+  renderAllChecks();
+}
+function renderAllChecks(){
+  const el=document.getElementById('allchecks-list');
+  const sumEl=document.getElementById('allchecks-summary');
+  if(!el)return;
+  const fromVal=document.getElementById('allchecks-from').value;
+  const toVal=document.getElementById('allchecks-to').value;
+  let cls=S.checklists.filter(c=>c.status==='closed'&&!c.isManagerCL);
+  if(fromVal){const f=new Date(fromVal);cls=cls.filter(c=>new Date(c.date)>=f);}
+  if(toVal){const t=new Date(toVal);t.setDate(t.getDate()+1);cls=cls.filter(c=>new Date(c.date)<t);}
+  cls=[...cls].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(sumEl){
+    const avg=cls.length?Math.round(cls.reduce((s,c)=>s+(c.score||0),0)/cls.length):0;
+    sumEl.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)">
+      <span>Всього чеклістів: <strong>${cls.length}</strong></span>
+      <span>Середній бал: <strong style="color:${avg>=70?'var(--green)':avg>=50?'var(--amber)':'var(--red)'}">${avg}%</strong></span>
+    </div>`;
+  }
+  if(!cls.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--text3)">Немає чеклістів за вибраний період</div>';return;}
+  el.innerHTML=cls.map(cl=>{
+    const w=S.workers.find(x=>String(x.id)===String(cl.workerId));
+    const wName=w?`${w.first} ${w.last}`:'—';
+    const wRole=w?(w.role==='top_manager'?'Топ-менеджер':'Менеджер'):'';
+    const score=cl.score!==null?cl.score+'%':'—';
+    const scoreColor=cl.score>=70?'var(--green)':cl.score>=50?'var(--amber)':'var(--red)';
+    return`<div class="row-item" style="cursor:pointer" onclick="openFillView('${cl.id}',true)">
+      <div class="person-avatar" style="width:36px;height:36px;font-size:12px;flex-shrink:0">${w?(w.first[0]||'')+(w.last[0]||''):'?'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600">${wName} <span style="font-size:11px;color:var(--text3);font-weight:400">${wRole}</span></div>
+        <div style="font-size:12px;color:var(--text3)">${tName(cl.typeId)} · ${oName(cl.objectId)} · ${fmtDate(cl.date)}</div>
+      </div>
+      <div style="font-size:18px;font-weight:700;color:${scoreColor};flex-shrink:0">${score}</div>
+    </div>`;
+  }).join('');
+}
 function populateRepFilters(){
   const wSel=document.getElementById('rep-sel-mgr');const workers=getRepWorkers();wSel.innerHTML=workers.map((w,i)=>`<option value="${i}">${w.name}</option>`).join('');
   document.getElementById('rep-sel-ind').innerHTML=S.indicators.map((ind,i)=>`<option value="${i}">${ind.name}</option>`).join('');
