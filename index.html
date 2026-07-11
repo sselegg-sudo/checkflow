@@ -1135,8 +1135,14 @@ async function sbSaveCL(cl) {
 
 async function sbSaveAnswers(cl) {
   try {
-    var sbId = cl._sbid || cl.id;
-    if (!sbId) return;
+    // Чекаємо поки sbSaveCL встановить реальний _sbid (до 3 секунд)
+    var waited = 0;
+    while(!cl._sbid && waited < 3000){
+      await new Promise(r=>setTimeout(r,100));
+      waited += 100;
+    }
+    var sbId = cl._sbid;
+    if (!sbId) { console.error('[sbSaveAnswers] no _sbid after wait'); return; }
     var rows = [];
     Object.keys(cl.answers).forEach(function(key){
       var ans = cl.answers[key];
@@ -2331,7 +2337,7 @@ function setA(clId,key,val){
   if(dot){dot.className=`ir-status-dot ${newVal||''}`;dot.textContent=newVal==='yes'?'✓':newVal==='half'?'½':newVal==='no'?'✕':'';}
   if(row){const btns=row.querySelectorAll('.ir-btn');const labs=['yes','half','no'];btns.forEach((b,i)=>{if(i<3)b.className=`ir-btn ${labs[i]===newVal?labs[i]:''}`;});}
   updateFillProgress(cl);
-  if(cl._sbid){sbSaveAnswers(cl);}
+  if(cl._sbid||cl.id){sbSaveAnswers(cl);}
 }
 function togCom(key){const ta=document.getElementById(`irt-${key}`);if(ta)ta.style.display=ta.style.display==='none'?'block':'none';}
 function setC(clId,key,val){const cl=S.checklists.find(c=>String(c.id)===String(clId));if(cl){const k=String(key);cl.answers[k]=cl.answers[k]||{value:null,comment:'',photo:null};cl.answers[k].comment=val;}}
