@@ -1125,12 +1125,15 @@ async function sbSaveCL(cl) {
       is_manager_cl:!!cl.isManagerCL, score:cl.score||null,
       closed_at:cl.closedAt||null, created_at:cl.createdAt};
     if (cl._sbid) {
-      await _sb.from('checkflow_checklists').update(p).eq('id', cl._sbid);
+      var ru = await _sb.from('checkflow_checklists').update(p).eq('id', cl._sbid);
+      if(ru.error) console.error('[sbSaveCL] UPDATE error:', ru.error);
+      else console.log('[sbSaveCL] updated ok:', cl._sbid);
     } else {
       var r = await _sb.from('checkflow_checklists').insert(p).select().single();
-      if (r.data) { cl.id = r.data.id; cl._sbid = r.data.id; }
+      if(r.error) console.error('[sbSaveCL] INSERT error:', r.error);
+      else if (r.data) { cl.id = r.data.id; cl._sbid = r.data.id; console.log('[sbSaveCL] inserted ok:', cl._sbid); }
     }
-  } catch(e) { console.error('[sbSaveCL]', e); }
+  } catch(e) { console.error('[sbSaveCL] EXCEPTION:', e); }
 }
 
 async function sbSaveAnswers(cl) {
@@ -2093,7 +2096,7 @@ function openNewChecklistModal(){
   }
   openModal('modal-new-checklist');
 }
-function createChecklist(){
+async function createChecklist(){
   const cu=S.currentUser;if(!cu)return;
   const objectId=document.getElementById('nc-object').value;
   const date=document.getElementById('nc-date').value;
@@ -2122,7 +2125,8 @@ function createChecklist(){
     isManagerCL, authorId:cu.id, authorRole:cu.role,
     createdAt:new Date().toISOString(),closedAt:null,score:null,answers};
   S.checklists.push(cl);closeModal('modal-new-checklist');updateBadge();
-  sbSaveCL(cl).then(function(){openFillView(cl.id,false);}).catch(function(){openFillView(cl.id,false);});
+  await sbSaveCL(cl);
+  openFillView(cl.id,false);
 }
 
 // ── FILL VIEW ──
