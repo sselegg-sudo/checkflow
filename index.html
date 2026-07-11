@@ -1139,7 +1139,7 @@ async function sbSaveCL(cl) {
 async function sbSaveAnswers(cl) {
   try {
     var sbId = cl._sbid;
-    if (!sbId) return; // якщо немає _sbid - пропускаємо, finishChecklist збереже все
+    if (!sbId) return;
     var rows = [];
     Object.keys(cl.answers).forEach(function(key){
       var ans = cl.answers[key];
@@ -1149,8 +1149,11 @@ async function sbSaveAnswers(cl) {
                  sub_indicator_id:parts[1]||null, value:ans.value||null,
                  comment:ans.comment||'', photo_url:ans.photo||null});
     });
-    await _sb.from('checkflow_answers').delete().eq('checklist_id', sbId);
-    if (rows.length) await _sb.from('checkflow_answers').insert(rows);
+    if (!rows.length) return;
+    // Використовуємо upsert замість delete+insert щоб уникнути втрати даних
+    await _sb.from('checkflow_answers').upsert(rows, {
+      onConflict: 'checklist_id,indicator_id,sub_indicator_id'
+    });
   } catch(e) { console.error('[sbSaveAnswers]', e); }
 }
 
@@ -2357,7 +2360,24 @@ async function finishChecklist(){
   const{total,done}=countAnswerable(cl);if(done<total){if(!confirm(`Оцінено ${done} з ${total}. Завершити все одно?`))return;}
   cl.status='closed';cl.closedAt=new Date().toISOString();cl.score=calcScore(cl);
   await sbSaveCL(cl);
-  await sbSaveAnswers(cl);
+  // Явно зберігаємо всі відповіді при закритті через delete+insert
+  try{
+    var sbId=cl._sbid;
+    if(sbId){
+      var rows=[];
+      Object.keys(cl.answers).forEach(function(key){
+        var ans=cl.answers[key];
+        if(!ans||(!ans.value&&!ans.photo&&!ans.comment))return;
+        var parts=String(key).split('_sub_');
+        rows.push({checklist_id:sbId,indicator_id:parts[0],
+                   sub_indicator_id:parts[1]||null,value:ans.value||null,
+                   comment:ans.comment||'',photo_url:ans.photo||null});
+      });
+      await _sb.from('checkflow_answers').delete().eq('checklist_id',sbId);
+      if(rows.length) await _sb.from('checkflow_answers').insert(rows);
+      console.log('[finishChecklist] saved',rows.length,'answers for',sbId);
+    }
+  }catch(e){console.error('[finishChecklist] answers save error:',e);}
   closeFillView();updateBadge();toast('Завершено! Бал: '+(cl.isManagerCL?'самоконтроль':cl.score!==null?cl.score+'%':'—'));
 }
 
@@ -2405,6 +2425,12 @@ function clCard(cl,isOpen){
   const{total,done}=countAnswerable(cl);const pct=total>0?Math.round(done/total*100):0;
   const score=cl.isManagerCL?null:(cl.score!==null&&cl.score!==undefined?cl.score:calcScore(cl));const col=pctC(score||0);
   const selfTag=cl.isManagerCL?'<span class="self-only-tag" style="margin-left:4px">Самоконтроль</span>':'';
+  // Для закритих чеклістів без збережених відповідей — показуємо бал без прогрес бару
+  const hasAnswers=Object.keys(cl.answers||{}).length>0;
+  const progressHtml=(!isOpen&&!hasAnswers&&score!==null)
+    ? `<div style="font-size:12px;color:var(--text3)">Деталі недоступні</div>`
+    : `<div class="cc-progress-text">${done} / ${total}</div>
+       <div class="progress-bar" style="flex:1"><div class="progress-fill ${isOpen?'pf-purple':'pf-'+col}" style="width:${pct}%"></div></div>`;
   return`<div class="checklist-card ${isOpen?'clickable':''}" ${isOpen?`onclick="openFillView('${cl.id}',false)"`:''}> 
     <div class="cc-header">
       <div><div class="cc-title">${tName(cl.typeId)}${selfTag}</div><div class="cc-meta">${oName(cl.objectId)} · ${wName(cl.workerId)} · ${fmtDate(cl.date)}</div></div>
@@ -2415,8 +2441,7 @@ function clCard(cl,isOpen){
       </div>
     </div>
     <div class="cc-footer">
-      <div class="cc-progress-text">${done} / ${total}</div>
-      <div class="progress-bar" style="flex:1"><div class="progress-fill ${isOpen?'pf-purple':'pf-'+col}" style="width:${pct}%"></div></div>
+      ${progressHtml}
       ${isOpen?`<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openFillView('${cl.id}',false)">Продовжити →</button>`:''}
     </div>
   </div>`;
