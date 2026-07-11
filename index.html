@@ -2026,11 +2026,14 @@ function countAnswerable(cl){
   type.indicatorIds.forEach(iid=>{
     const ind=getInd(iid);if(!ind)return;
     if(ind.subs&&ind.subs.length){
+      // рахуємо підіндикатори — або обрані для цього виду (з subMap) або всі
+      const subMap=type.subMap||{};
+      const allowedSubs=subMap[iid];
       ind.subs.forEach((_,si)=>{
-        const key=`${iid}_sub_${si}`;
-        if(!cl.answers[key])return; // підіндикатор не входить у цей вид
+        if(allowedSubs&&!allowedSubs.includes(si))return;
         total++;
-        if(cl.answers[key].value)done++;
+        const key=`${iid}_sub_${si}`;
+        if(cl.answers[key]&&cl.answers[key].value)done++;
       });
     } else {
       total++;
