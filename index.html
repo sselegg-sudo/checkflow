@@ -1027,7 +1027,7 @@ async function loadFromSupabase() {
         var q=_sb.from('checkflow_checklists').select('*, checkflow_answers(*)').order('created_at',{ascending:false}).limit(500);
         var cu=S.currentUser;
         if(cu&&cu.role==='manager') q=q.eq('worker_id',cu.id);
-        else if(cu&&cu.role==='top_manager') q=q.eq('worker_id',cu.id);
+        else if(cu&&cu.role==='top_manager') q=q.eq('author_id',cu.id);
         // admin — завантажує всі
         return q;
       })()
