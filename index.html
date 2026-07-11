@@ -1135,14 +1135,8 @@ async function sbSaveCL(cl) {
 
 async function sbSaveAnswers(cl) {
   try {
-    // Чекаємо поки sbSaveCL встановить реальний _sbid (до 3 секунд)
-    var waited = 0;
-    while(!cl._sbid && waited < 3000){
-      await new Promise(r=>setTimeout(r,100));
-      waited += 100;
-    }
     var sbId = cl._sbid;
-    if (!sbId) { console.error('[sbSaveAnswers] no _sbid after wait'); return; }
+    if (!sbId) return; // якщо немає _sbid - пропускаємо, finishChecklist збереже все
     var rows = [];
     Object.keys(cl.answers).forEach(function(key){
       var ans = cl.answers[key];
@@ -2350,12 +2344,13 @@ function updateFillProgress(cl){
   if(dc)dc.textContent=done;if(tc)tc.textContent=total;
   const score=calcScore(cl);if(sv)sv.textContent=score!==null?score+'%':'—';if(st)st.textContent=`${done}/${total}`;
 }
-function finishChecklist(){
+async function finishChecklist(){
   const cl=S.checklists.find(c=>c.id===S.currentCL);if(!cl)return;
   const blocked=checkBlocking(cl);if(blocked.length){alert('Не можна закрити:\n\n'+blocked.map(b=>'• '+b).join('\n'));return;}
   const{total,done}=countAnswerable(cl);if(done<total){if(!confirm(`Оцінено ${done} з ${total}. Завершити все одно?`))return;}
   cl.status='closed';cl.closedAt=new Date().toISOString();cl.score=calcScore(cl);
-  sbSaveCL(cl).then(function(){return sbSaveAnswers(cl);});
+  await sbSaveCL(cl);
+  await sbSaveAnswers(cl);
   closeFillView();updateBadge();toast('Завершено! Бал: '+(cl.isManagerCL?'самоконтроль':cl.score!==null?cl.score+'%':'—'));
 }
 
