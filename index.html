@@ -1150,10 +1150,8 @@ async function sbSaveAnswers(cl) {
                  comment:ans.comment||'', photo_url:ans.photo||null});
     });
     if (!rows.length) return;
-    // Використовуємо upsert замість delete+insert щоб уникнути втрати даних
-    await _sb.from('checkflow_answers').upsert(rows, {
-      onConflict: 'checklist_id,indicator_id,sub_indicator_id'
-    });
+    await _sb.from('checkflow_answers').delete().eq('checklist_id', sbId);
+    await _sb.from('checkflow_answers').insert(rows);
   } catch(e) { console.error('[sbSaveAnswers]', e); }
 }
 
