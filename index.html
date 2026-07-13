@@ -806,9 +806,19 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
 <div class="modal-backdrop" id="modal-new-checklist">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Новий чекліст</div><button class="modal-close" onclick="closeModal('modal-new-checklist')">✕</button></div>
-    <div class="form-group"><label class="form-label">Об'єкт</label><select class="form-select" id="nc-object"></select></div>
+    <input type="hidden" id="nc-object">
+    <div class="form-group">
+      <label class="form-label">Об'єкт</label>
+      <input class="form-input" id="nc-object-search" placeholder="Пошук об'єкту..." autocomplete="off" oninput="filterNcList('object')" onfocus="showNcDropdown('object')" onblur="setTimeout(()=>hideNcDropdown('object'),200)">
+      <div id="nc-object-dropdown" style="display:none;position:absolute;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;width:100%;box-shadow:var(--shadow)"></div>
+    </div>
     <div class="form-group" id="nc-date-group"><label class="form-label">Дата моніторингу</label><input type="date" class="form-input" id="nc-date"><div id="nc-date-display" style="display:none;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text2)"></div></div>
-    <div class="form-group"><label class="form-label">Працівник</label><select class="form-select" id="nc-worker"></select></div>
+    <input type="hidden" id="nc-worker">
+    <div class="form-group" id="nc-worker-group">
+      <label class="form-label">Працівник</label>
+      <input class="form-input" id="nc-worker-search" placeholder="Пошук працівника..." autocomplete="off" oninput="filterNcList('worker')" onfocus="showNcDropdown('worker')" onblur="setTimeout(()=>hideNcDropdown('worker'),200)">
+      <div id="nc-worker-dropdown" style="display:none;position:absolute;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;width:100%;box-shadow:var(--shadow)"></div>
+    </div>
     <div class="form-group"><label class="form-label">Вид чекліста</label><select class="form-select" id="nc-type"></select></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-new-checklist')">Скасувати</button>
@@ -2066,24 +2076,36 @@ function checkBlocking(cl){
 function openNewChecklistModal(){
   const cu=S.currentUser;if(!cu)return;
   const isManager=cu.role==='manager';
-  // Filter objects: if workerIds is non-empty, only show objects the current worker has access to.
-  // Admins and top_managers always see all objects.
-  const visibleObjects = (isManager && cu.id)
+  const isMgr=cu.role==='manager';
+  // Об'єкти з фільтром доступу
+  const visibleObjects=(isManager&&cu.id)
     ? S.objects.filter(o=>!o.workerIds||o.workerIds.length===0||o.workerIds.map(String).includes(String(cu.id)))
     : S.objects;
-  document.getElementById('nc-object').innerHTML='<option value="">Оберіть об\'єкт</option>'+visibleObjects.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+  window._ncObjects=visibleObjects;
+  document.getElementById('nc-object').value='';
+  document.getElementById('nc-object-search').value='';
+  renderNcDropdown('object',visibleObjects.map(o=>({id:o.id,label:o.name+(o.address?' — '+o.address:'')})));
+  // Працівник
   if(isManager){
-    document.getElementById('nc-worker').innerHTML=`<option value="${cu.id}">${cu.name}</option>`;
-    document.getElementById('nc-worker').disabled=true;
+    document.getElementById('nc-worker').value=cu.id;
+    document.getElementById('nc-worker-search').value=(cu.name||cu.login||'');
+    document.getElementById('nc-worker-search').readOnly=true;
+    document.getElementById('nc-worker-search').style.opacity='0.6';
+    window._ncWorkers=[];
   } else {
-    document.getElementById('nc-worker').disabled=false;
-    document.getElementById('nc-worker').innerHTML='<option value="">Оберіть працівника</option>'+S.workers.map(w=>`<option value="${w.id}">${w.first} ${w.last} — ${roleLabel(w.role)}</option>`).join('');
+    document.getElementById('nc-worker').value='';
+    document.getElementById('nc-worker-search').value='';
+    document.getElementById('nc-worker-search').readOnly=false;
+    document.getElementById('nc-worker-search').style.opacity='';
+    window._ncWorkers=S.workers.map(w=>({id:w.id,label:`${w.first} ${w.last} — ${roleLabel(w.role)}`}));
+    renderNcDropdown('worker',window._ncWorkers);
   }
-  const isMgr=cu.role==='manager';
+  // Вид
   const visibleTypes=(cu.id&&(isMgr||cu.role==='top_manager'))
     ? S.types.filter(t=>!t.workerIds||t.workerIds.length===0||t.workerIds.map(String).includes(String(cu.id)))
     : S.types;
   document.getElementById('nc-type').innerHTML='<option value="">Оберіть вид</option>'+visibleTypes.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  // Дата
   const todayStr=today();
   document.getElementById('nc-date').value=todayStr;
   const dateInput=document.getElementById('nc-date');
@@ -2091,7 +2113,6 @@ function openNewChecklistModal(){
   if(isMgr){
     dateInput.style.display='none';
     dateDisplay.style.display='block';
-    // Показуємо дату в читабельному форматі
     const d=new Date(todayStr+'T00:00:00');
     dateDisplay.textContent=d.toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'});
   } else {
@@ -2099,6 +2120,30 @@ function openNewChecklistModal(){
     dateDisplay.style.display='none';
   }
   openModal('modal-new-checklist');
+}
+function renderNcDropdown(type,items){
+  const dd=document.getElementById(`nc-${type}-dropdown`);if(!dd)return;
+  dd.innerHTML=items.length?items.map(item=>{
+    const safeLabel=item.label.replace(/'/g,"\\'");
+    return`<div style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)" onmousedown="selectNcItem('${type}','${item.id}','${safeLabel}')">${item.label}</div>`;
+  }).join(''):'<div style="padding:10px 14px;font-size:13px;color:var(--text3)">Нічого не знайдено</div>';
+}
+function filterNcList(type){
+  const q=document.getElementById(`nc-${type}-search`).value.toLowerCase();
+  const items=type==='object'
+    ?(window._ncObjects||[]).map(o=>({id:o.id,label:o.name+(o.address?' — '+o.address:'')}))
+    :(window._ncWorkers||[]);
+  const filtered=q?items.filter(i=>i.label.toLowerCase().includes(q)):items;
+  renderNcDropdown(type,filtered);
+  showNcDropdown(type);
+  if(!q)document.getElementById(`nc-${type}`).value='';
+}
+function showNcDropdown(type){const dd=document.getElementById(`nc-${type}-dropdown`);if(dd)dd.style.display='block';}
+function hideNcDropdown(type){const dd=document.getElementById(`nc-${type}-dropdown`);if(dd)dd.style.display='none';}
+function selectNcItem(type,id,label){
+  document.getElementById(`nc-${type}`).value=id;
+  document.getElementById(`nc-${type}-search`).value=label;
+  hideNcDropdown(type);
 }
 async function createChecklist(){
   const cu=S.currentUser;if(!cu)return;
@@ -2407,7 +2452,8 @@ function renderArchive(){
       closed=closed.filter(c=>mgrIds.includes(String(c.authorId)));
     }
   }
-  closed=[...closed].reverse();
+  // Сортуємо — найновіші закриті зверху
+  closed=[...closed].sort((a,b)=>new Date(b.closedAt||b.createdAt||0)-new Date(a.closedAt||a.createdAt||0));
   if(!closed.length){el.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><p>Архів порожній</p></div>';return;}
   el.innerHTML=closed.map(cl=>clCard(cl,false)).join('');
 }
