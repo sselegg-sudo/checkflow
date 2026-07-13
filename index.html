@@ -807,17 +807,17 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Новий чекліст</div><button class="modal-close" onclick="closeModal('modal-new-checklist')">✕</button></div>
     <input type="hidden" id="nc-object">
-    <div class="form-group">
+    <div class="form-group" style="position:relative">
       <label class="form-label">Об'єкт</label>
       <input class="form-input" id="nc-object-search" placeholder="Пошук об'єкту..." autocomplete="off" oninput="filterNcList('object')" onfocus="showNcDropdown('object')" onblur="setTimeout(()=>hideNcDropdown('object'),200)">
-      <div id="nc-object-dropdown" style="display:none;position:absolute;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;width:100%;box-shadow:var(--shadow)"></div>
+      <div id="nc-object-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:var(--shadow)"></div>
     </div>
     <div class="form-group" id="nc-date-group"><label class="form-label">Дата моніторингу</label><input type="date" class="form-input" id="nc-date"><div id="nc-date-display" style="display:none;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text2)"></div></div>
     <input type="hidden" id="nc-worker">
-    <div class="form-group" id="nc-worker-group">
+    <div class="form-group" id="nc-worker-group" style="position:relative">
       <label class="form-label">Працівник</label>
       <input class="form-input" id="nc-worker-search" placeholder="Пошук працівника..." autocomplete="off" oninput="filterNcList('worker')" onfocus="showNcDropdown('worker')" onblur="setTimeout(()=>hideNcDropdown('worker'),200)">
-      <div id="nc-worker-dropdown" style="display:none;position:absolute;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;width:100%;box-shadow:var(--shadow)"></div>
+      <div id="nc-worker-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:var(--shadow)"></div>
     </div>
     <div class="form-group"><label class="form-label">Вид чекліста</label><select class="form-select" id="nc-type"></select></div>
     <div class="modal-footer">
@@ -2124,8 +2124,19 @@ function openNewChecklistModal(){
 function renderNcDropdown(type,items){
   const dd=document.getElementById(`nc-${type}-dropdown`);if(!dd)return;
   dd.innerHTML=items.length?items.map(item=>{
-    const safeLabel=item.label.replace(/'/g,"\\'");
-    return`<div style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)" onmousedown="selectNcItem('${type}','${item.id}','${safeLabel}')">${item.label}</div>`;
+    const safeId=item.id;
+    const safeLabel=item.label.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    // Для об'єктів показуємо назву і адресу окремо
+    let displayHtml;
+    if(type==='object'){
+      const parts=item.label.split(' — ');
+      const name=parts[0];
+      const addr=parts.slice(1).join(' — ');
+      displayHtml=`<div style="font-size:14px;font-weight:500">${name}</div>${addr?`<div style="font-size:11px;color:var(--text3);margin-top:1px">${addr}</div>`:''}`;
+    } else {
+      displayHtml=`<div style="font-size:14px">${item.label}</div>`;
+    }
+    return`<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)" onmousedown="selectNcItem('${type}','${safeId}','${safeLabel}')">${displayHtml}</div>`;
   }).join(''):'<div style="padding:10px 14px;font-size:13px;color:var(--text3)">Нічого не знайдено</div>';
 }
 function filterNcList(type){
@@ -2138,11 +2149,24 @@ function filterNcList(type){
   showNcDropdown(type);
   if(!q)document.getElementById(`nc-${type}`).value='';
 }
-function showNcDropdown(type){const dd=document.getElementById(`nc-${type}-dropdown`);if(dd)dd.style.display='block';}
+function showNcDropdown(type){
+  const inp=document.getElementById(`nc-${type}-search`);
+  const dd=document.getElementById(`nc-${type}-dropdown`);
+  if(!dd||!inp)return;
+  const rect=inp.getBoundingClientRect();
+  dd.style.display='block';
+  dd.style.position='fixed';
+  dd.style.top=(rect.bottom+2)+'px';
+  dd.style.left=rect.left+'px';
+  dd.style.width=rect.width+'px';
+  dd.style.zIndex='9999';
+}
 function hideNcDropdown(type){const dd=document.getElementById(`nc-${type}-dropdown`);if(dd)dd.style.display='none';}
 function selectNcItem(type,id,label){
   document.getElementById(`nc-${type}`).value=id;
-  document.getElementById(`nc-${type}-search`).value=label;
+  // Для об'єктів показуємо тільки назву (без адреси) в полі пошуку
+  const displayLabel=type==='object'?label.split(' — ')[0]:label;
+  document.getElementById(`nc-${type}-search`).value=displayLabel;
   hideNcDropdown(type);
 }
 async function createChecklist(){
