@@ -933,7 +933,7 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border2);flex:1">
         <div class="toggle-switch" id="ai-photo-req-toggle" onclick="toggleSwitch('ai-photo-req-toggle','ai-photo-req-val')"><div class="ts-knob"></div></div>
         <input type="hidden" id="ai-photo-req-val" value="0">
-        <div><div style="font-size:13px;font-weight:500">Обов'язкове фото</div><div style="font-size:11px;color:var(--text3)">Без фото чекліст не закриється</div></div>
+        <div><div style="font-size:13px;font-weight:500">Фото</div><div style="font-size:11px;color:var(--text3)">Дозволити прикріпити фото</div></div>
       </label>
     </div>
     <div class="form-group">
@@ -2067,7 +2067,7 @@ function checkBlocking(cl){
       }
       else if(!ans||!ans.value)blocked.push(`"${ind.name}" — обов'язковий, поставте оцінку`);
     }
-    if(ind.photoRequired&&(!ans||!ans.photo))blocked.push(`"${ind.name}" — потрібне фото-підтвердження`);
+    if(ind.required&&ind.photoRequired&&(!ans||!ans.photo))blocked.push(`"${ind.name}" — потрібне фото-підтвердження`);
   });
   return blocked;
 }
@@ -2260,13 +2260,14 @@ function renderIRow(cl,ind,readonly){
   let photoUpHtml='';
   if(!readonly&&ind.photoRequired){
     const hp=ans.photo;
-    const isManagerRole=S.currentUser&&S.currentUser.role==='manager';
-    const captureAttr=isManagerRole?'capture="environment"':'';
+    // Завжди тільки камера - без галереї
     photoUpHtml=`<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <input type="file" accept="image/*" ${captureAttr} id="fp-${cl.id}-${key}" style="display:none" onchange="attachPhoto('${cl.id}','${key}',this)">
+      <input type="file" accept="image/*" capture="environment" id="fp-${cl.id}-${key}" style="display:none" onchange="attachPhoto('${cl.id}','${key}',this)">
       ${hp?`<img src="${ans.photo}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;border:2px solid var(--green);cursor:pointer" onclick="openLightbox(this.src)">
         <button class="ir-btn" style="color:var(--green)" onclick="document.getElementById('fp-${cl.id}-${key}').click()">✓ Фото є (замінити)</button>`:
-        `<button class="ir-btn" style="border-color:rgba(220,38,38,.5);color:var(--red);font-weight:600" onclick="document.getElementById('fp-${cl.id}-${key}').click()">📷 Додати фото (обов'язково)</button>`}
+        (ind.required?
+          `<button class="ir-btn" style="border-color:rgba(220,38,38,.5);color:var(--red);font-weight:600" onclick="document.getElementById('fp-${cl.id}-${key}').click()">📷 Додати фото (обов'язково)</button>`:
+          `<button class="ir-btn" onclick="document.getElementById('fp-${cl.id}-${key}').click()">📷 Додати фото</button>`)}
     </div>`;
   } else if(ans.photo){
     photoUpHtml=`<div style="margin-top:6px"><img src="${ans.photo}" style="width:80px;height:80px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);cursor:pointer" onclick="openLightbox(this.src)"></div>`;
