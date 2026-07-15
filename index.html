@@ -815,7 +815,7 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
     <div class="form-group" id="nc-date-group">
       <label class="form-label">Дата моніторингу</label>
       <input type="date" class="form-input" id="nc-date">
-      <div id="nc-date-display" style="display:none;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text2);text-align:left"></div>
+      <div id="nc-date-display" style="display:none;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text2);text-align:left;line-height:1.4"></div>
     </div>
     <input type="hidden" id="nc-worker">
     <div class="form-group" id="nc-worker-group" style="position:relative">
@@ -2117,6 +2117,7 @@ function openNewChecklistModal(){
   if(isMgr){
     dateInput.style.display='none';
     dateDisplay.style.display='block';
+    dateDisplay.style.textAlign='left';
     const d=new Date(todayStr+'T00:00:00');
     dateDisplay.textContent=d.toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'});
   } else {
