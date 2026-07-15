@@ -129,7 +129,7 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
 /* MODAL */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
 .modal-backdrop.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;animation:modalIn .2s ease;box-shadow:var(--shadow-md)}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;overflow-x:visible;animation:modalIn .2s ease;box-shadow:var(--shadow-md)}
 .modal-lg{max-width:720px}
 .modal-xl{max-width:880px}
 @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1)}}
@@ -804,20 +804,24 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
 
 <!-- New Checklist -->
 <div class="modal-backdrop" id="modal-new-checklist">
-  <div class="modal">
+  <div class="modal" style="overflow:visible">
     <div class="modal-header"><div class="modal-title">Новий чекліст</div><button class="modal-close" onclick="closeModal('modal-new-checklist')">✕</button></div>
     <input type="hidden" id="nc-object">
     <div class="form-group" style="position:relative">
       <label class="form-label">Об'єкт</label>
       <input class="form-input" id="nc-object-search" placeholder="Пошук об'єкту..." autocomplete="off" oninput="filterNcList('object')" onfocus="showNcDropdown('object')" onblur="setTimeout(()=>hideNcDropdown('object'),200)">
-      <div id="nc-object-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:var(--shadow)"></div>
+      <div id="nc-object-dropdown" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;box-shadow:var(--shadow)"></div>
     </div>
-    <div class="form-group" id="nc-date-group"><label class="form-label">Дата моніторингу</label><input type="date" class="form-input" id="nc-date"><div id="nc-date-display" style="display:none;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text2)"></div></div>
+    <div class="form-group" id="nc-date-group">
+      <label class="form-label">Дата моніторингу</label>
+      <input type="date" class="form-input" id="nc-date">
+      <div id="nc-date-display" style="display:none;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text2);text-align:left"></div>
+    </div>
     <input type="hidden" id="nc-worker">
     <div class="form-group" id="nc-worker-group" style="position:relative">
       <label class="form-label">Працівник</label>
       <input class="form-input" id="nc-worker-search" placeholder="Пошук працівника..." autocomplete="off" oninput="filterNcList('worker')" onfocus="showNcDropdown('worker')" onblur="setTimeout(()=>hideNcDropdown('worker'),200)">
-      <div id="nc-worker-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:var(--shadow)"></div>
+      <div id="nc-worker-dropdown" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;box-shadow:var(--shadow)"></div>
     </div>
     <div class="form-group"><label class="form-label">Вид чекліста</label><select class="form-select" id="nc-type"></select></div>
     <div class="modal-footer">
@@ -2150,16 +2154,8 @@ function filterNcList(type){
   if(!q)document.getElementById(`nc-${type}`).value='';
 }
 function showNcDropdown(type){
-  const inp=document.getElementById(`nc-${type}-search`);
   const dd=document.getElementById(`nc-${type}-dropdown`);
-  if(!dd||!inp)return;
-  const rect=inp.getBoundingClientRect();
-  dd.style.display='block';
-  dd.style.position='fixed';
-  dd.style.top=(rect.bottom+2)+'px';
-  dd.style.left=rect.left+'px';
-  dd.style.width=rect.width+'px';
-  dd.style.zIndex='9999';
+  if(dd)dd.style.display='block';
 }
 function hideNcDropdown(type){const dd=document.getElementById(`nc-${type}-dropdown`);if(dd)dd.style.display='none';}
 function selectNcItem(type,id,label){
