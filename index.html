@@ -1410,12 +1410,7 @@ function afterLogin(){
   } else {
     if(mb)mb.style.display='none';
   }
-  // Show loading and render home immediately with whatever data we have
-  try{
-    var _sess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');
-    if(!_sess.page||_sess.page==='home') renderHomeByRole();
-    else goPage(_sess.page);
-  }catch(e){renderHomeByRole();}
+  // Show loading screen while data loads - don't render page yet
   toast('Завантаження даних...','info');
   loadFromSupabase().then(function(){
     toast('Дані завантажено ✓','success');
@@ -1423,7 +1418,17 @@ function afterLogin(){
     // Відновлення поточної сторінки після оновлення
     try{
       var sess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');
-      if(sess.page&&sess.page!=='home'){
+      if(sess.currentCL){
+        // Відновити відкритий чекліст
+        var cl=S.checklists.find(function(c){return c.id===sess.currentCL||c._sbid===sess.currentCL;});
+        if(cl){
+          goPage(cl.status==='open'?'open-checklists':'archive');
+          openFillView(cl.id, cl.status!=='open');
+        } else {
+          if(sess.page&&sess.page!=='home') goPage(sess.page);
+          else renderHomeByRole();
+        }
+      } else if(sess.page&&sess.page!=='home'){
         goPage(sess.page);
       } else {
         renderHomeByRole();
@@ -2203,6 +2208,8 @@ async function createChecklist(){
 function openFillView(clId,readonly){
   const cl=S.checklists.find(c=>String(c.id)===String(clId));if(!cl)return;
   S.currentCL=clId;
+  // Зберігаємо відкритий чекліст в сесію
+  try{var sess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');sess.currentCL=clId;sessionStorage.setItem('cf_session',JSON.stringify(sess));}catch(e){}
   document.getElementById('cfv-title').textContent=tName(cl.typeId);
   const selfB=cl.isManagerCL?` <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--amber-bg);color:var(--amber);margin-left:6px">Самоконтроль</span>`:'';
   document.getElementById('cfv-meta').innerHTML=`${oName(cl.objectId)} · ${wName(cl.workerId)} · ${fmtDate(cl.date)}${selfB}`;
@@ -2223,7 +2230,13 @@ function openFillView(clId,readonly){
   document.getElementById('checklist-fill-view').classList.add('open');
   updateFillProgress(cl);
 }
-function closeFillView(){document.getElementById('checklist-fill-view').classList.remove('open');S.currentCL=null;renderOpenChecklists();renderArchive();updateBadge();}
+function closeFillView(){
+  document.getElementById('checklist-fill-view').classList.remove('open');
+  S.currentCL=null;
+  // Очищаємо currentCL з сесії
+  try{var sess=JSON.parse(sessionStorage.getItem('cf_session')||'{}');delete sess.currentCL;sessionStorage.setItem('cf_session',JSON.stringify(sess));}catch(e){}
+  renderOpenChecklists();renderArchive();updateBadge();
+}
 
 // FIX 1: реальне збереження чернетки
 function saveDraftChecklist(){
