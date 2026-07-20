@@ -614,6 +614,18 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
     <button class="rep-tab" onclick="switchRepTab('selfctrl',this)">🔄 Самоконтроль</button>
     <button class="rep-tab" onclick="switchRepTab('allchecks',this)">📋 Всі чеклісти</button>
   </div>
+  <!-- Спільний фільтр дат для всіх вкладок (крім Порівняння і Всі чеклісти) -->
+  <div id="rep-global-filter" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)">
+    <span style="font-size:13px;font-weight:500;color:var(--text2)">Період:</span>
+    <button class="period-btn" onclick="setRepGlobalPeriod('week',this)">Тиждень</button>
+    <button class="period-btn active" onclick="setRepGlobalPeriod('month',this)">Місяць</button>
+    <button class="period-btn" onclick="setRepGlobalPeriod('quarter',this)">Квартал</button>
+    <button class="period-btn" onclick="setRepGlobalPeriod('all',this)">Весь час</button>
+    <span style="font-size:12px;color:var(--text3);margin-left:4px">або</span>
+    <input type="date" class="form-input" id="rep-global-from" style="width:140px;padding:6px 10px;font-size:13px" onchange="renderCurrentRepTab()">
+    <span style="font-size:12px;color:var(--text3)">—</span>
+    <input type="date" class="form-input" id="rep-global-to" style="width:140px;padding:6px 10px;font-size:13px" onchange="renderCurrentRepTab()">
+  </div>
 
   <div class="rep-panel active" id="rep-panel-team">
     <div class="rep-metric-row" id="rep-team-metrics"></div>
@@ -2580,7 +2592,7 @@ let repSortMode='score';
 let scPeriod='month';
 
 function getRepWorkers(){
-  const wCLs=S.checklists.filter(c=>c.status==='closed'&&!c.isManagerCL&&c.score!==null);
+  const wCLs=getRepGlobalCLs().filter(c=>c.score!==null);
   return S.workers.map(w=>{
     const cls=wCLs.filter(c=>String(c.workerId)===String(w.id));const scores=cls.map(c=>c.score||0);
     if(!scores.length)return null;
@@ -2609,8 +2621,37 @@ function switchRepTab(tab,btn){
   if(tab==='compare')renderCompare();
 }
 function renderReporting(){
-  populateRepFilters();renderRepTeam();renderRepManager();renderRepObjects();renderRepIndicator();renderRepAlerts();renderRepSelfControl();
+  populateRepFilters();
+  // Встановлюємо початковий період (місяць)
+  setRepGlobalPeriod('month', document.querySelector('#rep-global-filter .period-btn.active'));
   setAllChecksPeriod('month');
+}
+function setRepGlobalPeriod(p, btn){
+  const now=new Date();const toStr=d=>d.toISOString().split('T')[0];
+  const from=new Date(now);
+  if(p==='week') from.setDate(from.getDate()-7);
+  else if(p==='month') from.setMonth(from.getMonth()-1);
+  else if(p==='quarter') from.setMonth(from.getMonth()-3);
+  else from.setFullYear(2000);
+  const fEl=document.getElementById('rep-global-from');
+  const tEl=document.getElementById('rep-global-to');
+  if(fEl) fEl.value=p==='all'?'':toStr(from);
+  if(tEl) tEl.value=p==='all'?'':toStr(now);
+  document.querySelectorAll('#rep-global-filter .period-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderRepTeam();renderRepManager();renderRepObjects();renderRepIndicator();renderRepAlerts();renderRepSelfControl();
+}
+function getRepGlobalCLs(){
+  let cls=S.checklists.filter(c=>c.status==='closed'&&!c.isManagerCL);
+  const fEl=document.getElementById('rep-global-from');
+  const tEl=document.getElementById('rep-global-to');
+  const fv=fEl?fEl.value:'';const tv=tEl?tEl.value:'';
+  if(fv){const f=new Date(fv);cls=cls.filter(c=>new Date(c.date)>=f);}
+  if(tv){const t=new Date(tv);t.setDate(t.getDate()+1);cls=cls.filter(c=>new Date(c.date)<t);}
+  return cls;
+}
+function renderCurrentRepTab(){
+  renderRepTeam();renderRepManager();renderRepObjects();renderRepIndicator();renderRepAlerts();renderRepSelfControl();
 }
 function setAllChecksPeriod(p){
   const now=new Date();const toStr=d=>d.toISOString().split('T')[0];
@@ -2685,7 +2726,7 @@ function renderRepManager(){
   document.getElementById('rep-mgr-chart-labels').innerHTML=wkL.map(l=>`<div style="flex:1;text-align:center;font-size:9px;color:var(--text3)">${l}</div>`).join('');
 }
 function renderRepObjects(){
-  const wCLs=S.checklists.filter(c=>c.status==='closed'&&!c.isManagerCL&&c.score!==null);
+  const wCLs=getRepGlobalCLs().filter(c=>c.score!==null);
   const objSt=S.objects.map(obj=>{const oCLs=wCLs.filter(c=>String(c.objectId)===String(obj.id));if(!oCLs.length)return null;const avg=Math.round(oCLs.reduce((s,c)=>s+(c.score||0),0)/oCLs.length);const wSet=new Set(oCLs.map(c=>c.workerId));return{...obj,score:avg,checks:oCLs.length,workerCount:wSet.size};}).filter(Boolean).sort((a,b)=>b.score-a.score);
   const tO=objSt.length;const aA=tO?Math.round(objSt.reduce((s,o)=>s+o.score,0)/tO):0;const wr=objSt.filter(o=>o.score<70).length;
   document.getElementById('rep-obj-metrics').innerHTML=`<div class="rep-metric"><div class="rep-metric-label">Активних об'єктів</div><div class="rep-metric-val">${tO}</div></div><div class="rep-metric"><div class="rep-metric-label">Середній бал</div><div class="rep-metric-val ${aA>=80?'rg':aA>=70?'ra':'rr'}">${aA}%</div></div><div class="rep-metric"><div class="rep-metric-label">Нижче 70%</div><div class="rep-metric-val ${wr?'rr':''}">${wr}</div></div><div class="rep-metric"><div class="rep-metric-label">Чеклістів</div><div class="rep-metric-val">${objSt.reduce((s,o)=>s+o.checks,0)}</div></div>`;
