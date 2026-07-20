@@ -2577,6 +2577,8 @@ function switchRepTab(tab,btn){
   btn.classList.add('active');
   document.getElementById('rep-panel-'+tab).classList.add('active');
   if(tab==='compare')renderCompare();
+  else if(tab==='allchecks')renderAllChecks();
+  else if(tab==='selfctrl')renderRepSelfControl();
 }
 function renderReporting(){
   populateRepFilters();
