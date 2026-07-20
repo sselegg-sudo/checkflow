@@ -1410,7 +1410,8 @@ function afterLogin(){
   } else {
     if(mb)mb.style.display='none';
   }
-  // Show loading screen while data loads - don't render page yet
+  // Рендеримо головну одразу щоб не було порожньої сторінки
+  renderHomeByRole();
   toast('Завантаження даних...','info');
   loadFromSupabase().then(function(){
     toast('Дані завантажено ✓','success');
@@ -1494,7 +1495,7 @@ function showLogoutConfirm(){
   }
 }
 
-function updateBadge(){const n=S.checklists.filter(c=>c.status==='open').length;const el=document.getElementById('open-count-badge');el.textContent=n;el.style.display=n>0?'block':'none';}
+function updateBadge(){const n=S.checklists.filter(c=>c.status==='open').length;const el=document.getElementById('open-count-badge');if(!el)return;el.textContent=n;el.style.display=n>0?'block':'none';}
 // Don't call updateBadge on load — wait for login
 
 // ── NAV ──
