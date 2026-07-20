@@ -685,42 +685,23 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
   </div>
 
   <div class="rep-panel" id="rep-panel-compare">
-    <!-- Фільтри порівняння -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-title">Налаштування порівняння</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end">
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end;flex-wrap:wrap">
         <div>
-          <div class="af-label">Поточний період</div>
-          <select class="form-select" id="cmp-period-a" onchange="renderCompare()">
-            <option value="this_month">Цей місяць</option>
-            <option value="last_month">Минулий місяць</option>
-            <option value="this_quarter">Цей квартал</option>
-            <option value="last_quarter">Минулий квартал</option>
-            <option value="custom_a">Власний діапазон</option>
-          </select>
-          <div id="cmp-custom-a" style="display:none;margin-top:8px;display:none">
-            <div style="display:flex;gap:6px;align-items:center">
-              <input type="date" class="form-input" id="cmp-from-a" style="flex:1">
-              <span style="color:var(--text3)">—</span>
-              <input type="date" class="form-input" id="cmp-to-a" style="flex:1">
-            </div>
+          <div class="af-label" style="margin-bottom:6px">Поточний період</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="date" class="form-input" id="cmp-from-a" style="flex:1" onchange="renderCompare()">
+            <span style="color:var(--text3)">—</span>
+            <input type="date" class="form-input" id="cmp-to-a" style="flex:1" onchange="renderCompare()">
           </div>
         </div>
         <div>
-          <div class="af-label">Порівнюваний період</div>
-          <select class="form-select" id="cmp-period-b" onchange="renderCompare()">
-            <option value="last_month">Минулий місяць</option>
-            <option value="this_month">Цей місяць</option>
-            <option value="last_quarter">Минулий квартал</option>
-            <option value="this_quarter">Цей квартал</option>
-            <option value="custom_b">Власний діапазон</option>
-          </select>
-          <div id="cmp-custom-b" style="display:none">
-            <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
-              <input type="date" class="form-input" id="cmp-from-b" style="flex:1">
-              <span style="color:var(--text3)">—</span>
-              <input type="date" class="form-input" id="cmp-to-b" style="flex:1">
-            </div>
+          <div class="af-label" style="margin-bottom:6px">Порівнюваний період</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="date" class="form-input" id="cmp-from-b" style="flex:1" onchange="renderCompare()">
+            <span style="color:var(--text3)">—</span>
+            <input type="date" class="form-input" id="cmp-to-b" style="flex:1" onchange="renderCompare()">
           </div>
         </div>
         <div>
@@ -733,10 +714,7 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
       </div>
     </div>
 
-    <!-- Зведені метрики порівняння -->
     <div id="cmp-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px"></div>
-
-    <!-- Легенда -->
     <div style="display:flex;gap:20px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <div style="font-size:12px;font-weight:600;color:var(--text2)">Легенда:</div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;border-radius:2px;background:var(--accent)"></div>Поточний період (А)</div>
@@ -744,13 +722,10 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green)">▲ Зростання</div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--red)">▼ Падіння</div>
     </div>
-
-    <!-- Таблиця порівняння -->
     <div class="card" style="padding:0;overflow:hidden">
       <div id="cmp-header" style="display:grid;padding:10px 16px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em"></div>
       <div id="cmp-rows"></div>
     </div>
-
     <div class="card" id="cmp-detail-wrap" style="display:none">
       <div class="card-title" id="cmp-detail-title">Деталізація</div>
       <div id="cmp-detail-body"></div>
@@ -764,13 +739,6 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
     <div class="rep-metric-row" style="grid-template-columns:repeat(3,1fr)" id="sc-metrics"></div>
     <div class="card">
       <div class="card-title">Активність самоконтролю по менеджерах</div>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-        <div class="af-label" style="align-self:center">Період:</div>
-        <button class="period-btn active" onclick="setScPeriod('week',this)">Тиждень</button>
-        <button class="period-btn" onclick="setScPeriod('month',this)">Місяць</button>
-        <button class="period-btn" onclick="setScPeriod('quarter',this)">Квартал</button>
-        <button class="period-btn" onclick="setScPeriod('all',this)">Весь час</button>
-      </div>
       <div id="sc-list"></div>
     </div>
     <div class="card" id="sc-detail-card" style="display:none">
@@ -782,16 +750,6 @@ input,select,textarea,button{font-family:'Onest',sans-serif}
   <div class="rep-panel" id="rep-panel-allchecks">
     <div class="card">
       <div class="card-title">📋 Всі чеклісти</div>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:13px;color:var(--text3)">Від:</span>
-        <input type="date" class="form-input" id="allchecks-from" style="width:140px;padding:6px 10px;font-size:13px">
-        <span style="font-size:13px;color:var(--text3)">До:</span>
-        <input type="date" class="form-input" id="allchecks-to" style="width:140px;padding:6px 10px;font-size:13px">
-        <button class="btn btn-primary" style="font-size:13px" onclick="renderAllChecks()">Показати</button>
-        <button class="btn" style="font-size:13px" onclick="setAllChecksPeriod('week')">Тиждень</button>
-        <button class="btn" style="font-size:13px" onclick="setAllChecksPeriod('month')">Місяць</button>
-        <button class="btn" style="font-size:13px" onclick="setAllChecksPeriod('all')">Весь час</button>
-      </div>
       <div id="allchecks-summary" style="margin-bottom:12px"></div>
       <div id="allchecks-list"></div>
     </div>
@@ -2622,9 +2580,7 @@ function switchRepTab(tab,btn){
 }
 function renderReporting(){
   populateRepFilters();
-  // Встановлюємо початковий період (місяць)
   setRepGlobalPeriod('month', document.querySelector('#rep-global-filter .period-btn.active'));
-  setAllChecksPeriod('month');
 }
 function setRepGlobalPeriod(p, btn){
   const now=new Date();const toStr=d=>d.toISOString().split('T')[0];
@@ -2669,12 +2625,7 @@ function renderAllChecks(){
   const el=document.getElementById('allchecks-list');
   const sumEl=document.getElementById('allchecks-summary');
   if(!el)return;
-  const fromVal=document.getElementById('allchecks-from').value;
-  const toVal=document.getElementById('allchecks-to').value;
-  let cls=S.checklists.filter(c=>c.status==='closed'&&!c.isManagerCL);
-  if(fromVal){const f=new Date(fromVal);cls=cls.filter(c=>new Date(c.date)>=f);}
-  if(toVal){const t=new Date(toVal);t.setDate(t.getDate()+1);cls=cls.filter(c=>new Date(c.date)<t);}
-  cls=[...cls].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  let cls=getRepGlobalCLs();
   if(sumEl){
     const avg=cls.length?Math.round(cls.reduce((s,c)=>s+(c.score||0),0)/cls.length):0;
     sumEl.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)">
@@ -2798,16 +2749,14 @@ function deltaStr(a,b){
 function pctColor(p){return p===null?'var(--text3)':p>=80?'var(--green)':p>=50?'var(--amber)':'var(--red)';}
 
 function renderCompare(){
-  const periodA=document.getElementById('cmp-period-a').value;
-  const periodB=document.getElementById('cmp-period-b').value;
   const scope=document.getElementById('cmp-scope').value;
+  const fromA=document.getElementById('cmp-from-a').value;
+  const toA=document.getElementById('cmp-to-a').value;
+  const fromB=document.getElementById('cmp-from-b').value;
+  const toB=document.getElementById('cmp-to-b').value;
 
-  // Show/hide custom inputs
-  document.getElementById('cmp-custom-a').style.display=periodA==='custom_a'?'block':'none';
-  document.getElementById('cmp-custom-b').style.display=periodB==='custom_b'?'block':'none';
-
-  const rA=getPeriodRange(periodA,'cmp-from-a','cmp-to-a');
-  const rB=getPeriodRange(periodB,'cmp-from-b','cmp-to-b');
+  const rA={from:fromA,to:toA,label:fromA&&toA?`${fmtDate(fromA)}–${fmtDate(toA)}`:'Поточний'};
+  const rB={from:fromB,to:toB,label:fromB&&toB?`${fmtDate(fromB)}–${fmtDate(toB)}`:'Порівнюваний'};
   const clsA=getCLsForRange(rA);
   const clsB=getCLsForRange(rB);
 
@@ -2955,10 +2904,11 @@ function renderCmpRows(rows,rA,rB,scope){
 }
 
 function showCmpDetail(id,scope){
-  const periodA=document.getElementById('cmp-period-a').value;
-  const periodB=document.getElementById('cmp-period-b').value;
-  const rA=getPeriodRange(periodA,'cmp-from-a','cmp-to-a');
-  const rB=getPeriodRange(periodB,'cmp-from-b','cmp-to-b');
+  const fromA=document.getElementById('cmp-from-a').value;
+  const toA=document.getElementById('cmp-to-a').value;
+  const fromB=document.getElementById('cmp-from-b').value;
+  const toB=document.getElementById('cmp-to-b').value;
+  const rA={from:fromA,to:toA};const rB={from:fromB,to:toB};
   const clsA=getCLsForRange(rA);const clsB=getCLsForRange(rB);
 
   let title='',bodyHtml='';
@@ -3024,10 +2974,12 @@ function getScCutoff(){
   return new Date(now.getTime()-days*86400000);
 }
 function renderRepSelfControl(){
-  // Самоконтролюючі = isManagerCL===true (менеджер на себе)
+  // Самоконтролюючі = isManagerCL===true, фільтруємо по глобальному фільтру дат
+  const fEl=document.getElementById('rep-global-from');
+  const tEl=document.getElementById('rep-global-to');
   let scCLs=S.checklists.filter(c=>c.isManagerCL===true);
-  const cutoff=getScCutoff();
-  if(cutoff)scCLs=scCLs.filter(c=>new Date(c.createdAt)>=cutoff);
+  if(fEl&&fEl.value){const f=new Date(fEl.value);scCLs=scCLs.filter(c=>new Date(c.date)>=f);}
+  if(tEl&&tEl.value){const t=new Date(tEl.value);t.setDate(t.getDate()+1);scCLs=scCLs.filter(c=>new Date(c.date)<t);}
 
   const total=scCLs.length;
   const closed=scCLs.filter(c=>c.status==='closed').length;
