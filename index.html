@@ -2625,7 +2625,13 @@ function renderAllChecks(){
   const el=document.getElementById('allchecks-list');
   const sumEl=document.getElementById('allchecks-summary');
   if(!el)return;
-  let cls=getRepGlobalCLs();
+  // Всі закриті чеклісти (включно з самоконтролем) по глобальному фільтру дат
+  let cls=S.checklists.filter(c=>c.status==='closed');
+  const fEl=document.getElementById('rep-global-from');
+  const tEl=document.getElementById('rep-global-to');
+  if(fEl&&fEl.value){const f=new Date(fEl.value);cls=cls.filter(c=>new Date(c.date)>=f);}
+  if(tEl&&tEl.value){const t=new Date(tEl.value);t.setDate(t.getDate()+1);cls=cls.filter(c=>new Date(c.date)<t);}
+  cls=[...cls].sort((a,b)=>new Date(b.closedAt||b.date)-new Date(a.closedAt||a.date));
   if(sumEl){
     const avg=cls.length?Math.round(cls.reduce((s,c)=>s+(c.score||0),0)/cls.length):0;
     sumEl.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)">
